@@ -95,6 +95,9 @@ const Layout = ({ children, user, onLogout }) => {
                 <header style={styles.header}>
                     <h2 style={styles.headerTitle}>Sistema de Gestión de Biblioteca</h2>
                     <div style={styles.userInfo}>
+                        <div style={styles.userRole}>
+                            {user.rol === 'admin' ? '👑 Admin' : '📚 Bibliotecario'}
+                        </div>
                         <span style={styles.userName}>👤 {user?.name}</span>
                         <button onClick={handleLogout} style={styles.logoutBtn}>
                             🚪 Cerrar Sesión
@@ -188,7 +191,15 @@ const styles = {
     userInfo: {
         display: 'flex',
         alignItems: 'center',
-        gap: '15px',
+        gap: '15px'
+    },
+    userRole: {
+        padding: '6px 12px',
+        backgroundColor: '#9C27B0',
+        color: '#fff',
+        borderRadius: '12px',
+        fontSize: '13px',
+        fontWeight: '600'
     },
     userName: {
         fontSize: '16px',

@@ -5,10 +5,11 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use App\Traits\Auditable;
 
 class User extends Authenticatable
 {
-    use HasFactory, Notifiable;
+    use HasFactory, Notifiable, Auditable;
 
     protected $fillable = [
         'name',
@@ -17,6 +18,7 @@ class User extends Authenticatable
         'dni',
         'telefono',
         'activo',
+        'rol',
         'creado_por',
     ];
 
@@ -57,9 +59,35 @@ class User extends Authenticatable
         return $this->hasMany(User::class, 'creado_por');
     }
 
+    public function auditLogs()
+    {
+        return $this->hasMany(AuditLog::class);
+    }
+
     // Scopes
     public function scopeActivos($query)
     {
         return $query->where('activo', true);
+    }
+
+    public function scopeAdmins($query)
+    {
+        return $query->where('rol', 'admin');
+    }
+
+    public function scopeBibliotecarios($query)
+    {
+        return $query->where('rol', 'bibliotecario');
+    }
+
+    // Métodos auxiliares
+    public function isAdmin()
+    {
+        return $this->rol === 'admin';
+    }
+
+    public function isBibliotecario()
+    {
+        return $this->rol === 'bibliotecario';
     }
 }

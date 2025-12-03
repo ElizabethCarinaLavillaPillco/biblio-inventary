@@ -91,7 +91,10 @@ const RegistrarLibro = () => {
 
     const handleUbicacionChange = (e) => {
         const { name, value } = e.target;
-        const newParts = { ...ubicacionParts, [name]: value };
+        // <-- CAMBIO 1: Convertir a mayúsculas si el campo es 'seccion'
+        const processedValue = name === 'seccion' ? value.toUpperCase() : value;
+
+        const newParts = { ...ubicacionParts, [name]: processedValue };
         setUbicacionParts(newParts);
         findOrCreateUbicacion(newParts);
     };
@@ -180,7 +183,7 @@ const RegistrarLibro = () => {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        
+
         if (!formData.titulo || !formData.autor_nombre || !formData.categoria_id) {
             Swal.fire('Error', 'Por favor completa los campos obligatorios (Título, Autor, Categoría)', 'error');
             return;
@@ -295,7 +298,16 @@ const RegistrarLibro = () => {
                         </div>
                         <div style={styles.formGroup}>
                             <label style={styles.label}>Sección</label>
-                            <input type="text" name="seccion" value={ubicacionParts.seccion} onChange={handleUbicacionChange} style={styles.input} maxLength="1" placeholder="Ej: A, B, C..." />
+                            {/* <-- CAMBIO 2: Añadir estilo para mostrar mayúsculas en el input */}
+                            <input
+                                type="text"
+                                name="seccion"
+                                value={ubicacionParts.seccion}
+                                onChange={handleUbicacionChange}
+                                style={{...styles.input, textTransform: 'uppercase'}}
+                                maxLength="1"
+                                placeholder="Ej: A, B, C..."
+                            />
                         </div>
                     </div>
                     {ubicacionId && (

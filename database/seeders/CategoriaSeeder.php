@@ -10,17 +10,32 @@ class CategoriaSeeder extends Seeder
     public function run(): void
     {
         $categorias = [
-            'Sin categoría',
-            'Novelas Peruanas',
-            'Terror',
-            'Suspenso',
-            'Historia Universal',
-            'Historia Peruana',
-            'Derecho Legal',
+            'Sin Categoría', // ID 1 - default
+            'Ficción',
+            'Literatura Infantil',
+            'Historia del Perú',
+            'Ciencias Naturales',
+            'Matemáticas',
+            'Filosofía',
+            'Poesía',
+            'Teatro',
+            'Biografías',
+            'Autoayuda',
+            'Cocina',
+            'Arte',
+            'Música',
+            'Deportes',
+            'Tecnología',
+            'Educación',
+            'Derecho',
+            'Medicina',
+            'Literatura Peruana',
         ];
 
-        foreach ($categorias as $categoria) {
-            Categoria::create(['nombre' => $categoria]);
+        foreach ($categorias as $nombre) {
+            Categoria::create(['nombre' => $nombre]);
         }
+
+        $this->command->info('✓ ' . count($categorias) . ' categorías creadas');
     }
 }

@@ -3,7 +3,6 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Session;
@@ -40,19 +39,25 @@ class AuthController extends Controller
             ], 403);
         }
 
-        // Limpiar sesión anterior
-        Session::flush();
-        
-        // Iniciar nueva sesión
-        Session::regenerate();
-        
-        // Guardar en sesión
+        // ⚡ SOLUCIÓN: Migrar sesión y forzar guardado
+        Session::migrate(); // Regenera el ID de sesión
         Session::put('user_id', $user->id);
-        Session::put('user', $user);
+        Session::put('user_email', $user->email);
+        Session::put('user_name', $user->name);
+        Session::put('user_rol', $user->rol);
+        Session::save(); // ⬅️ CRÍTICO: Fuerza el guardado inmediato
+
+        // Log para verificar
+        \Log::info('Login exitoso', [
+            'user_id' => $user->id,
+            'session_id' => Session::getId(),
+            'session_data' => Session::all()
+        ]);
 
         return response()->json([
             'message' => 'Inicio de sesión exitoso',
-            'user' => $user
+            'user' => $user,
+            'session_id' => Session::getId() // Para debug
         ]);
     }
 
@@ -60,10 +65,10 @@ class AuthController extends Controller
     {
         // Limpiar toda la sesión
         Session::flush();
-        
+
         // Regenerar el ID de la sesión
-        Session::regenerate(true);
-        
+        Session::regenerate();
+
         return response()->json([
             'message' => 'Sesión cerrada exitosamente'
         ]);
@@ -71,12 +76,23 @@ class AuthController extends Controller
 
     public function check()
     {
-        if (Session::has('user_id')) {
-            $user = User::find(Session::get('user_id'));
-            return response()->json([
-                'authenticated' => true,
-                'user' => $user
-            ]);
+        $userId = Session::get('user_id');
+
+        // Log para debug
+        \Log::info('Check session', [
+            'user_id' => $userId,
+            'session_all' => Session::all()
+        ]);
+
+        if ($userId) {
+            $user = User::find($userId);
+
+            if ($user) {
+                return response()->json([
+                    'authenticated' => true,
+                    'user' => $user
+                ]);
+            }
         }
 
         return response()->json([

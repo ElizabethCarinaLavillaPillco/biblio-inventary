@@ -6,12 +6,14 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
-use Illuminate\Support\Facades\Auth;
 
 class UserController extends Controller
 {
     public function index(Request $request)
     {
+        $currentUserId = session('user_id');
+        $currentUser = User::find($currentUserId);
+
         $query = User::query();
 
         // Búsqueda
@@ -34,17 +36,31 @@ class UserController extends Controller
             ->latest()
             ->paginate(20);
 
-        return response()->json($usuarios);
+        return response()->json([
+            'usuarios' => $usuarios,
+            'current_user_rol' => $currentUser->rol ?? null
+        ]);
     }
 
     public function store(Request $request)
     {
+        // Verificar que el usuario actual sea admin
+        $currentUserId = session('user_id');
+        $currentUser = User::find($currentUserId);
+
+        if (!$currentUser || !$currentUser->isAdmin()) {
+            return response()->json([
+                'message' => 'Solo los administradores pueden crear usuarios.'
+            ], 403);
+        }
+
         $validator = Validator::make($request->all(), [
             'name' => 'required|string|max:255',
             'email' => 'required|email|unique:users,email',
             'dni' => 'required|string|size:8|unique:users,dni',
             'password' => 'required|string|min:6',
             'telefono' => 'nullable|string|max:15',
+            'rol' => 'required|in:admin,bibliotecario',
         ]);
 
         if ($validator->fails()) {
@@ -59,8 +75,9 @@ class UserController extends Controller
             'dni' => $request->dni,
             'password' => Hash::make($request->password),
             'telefono' => $request->telefono,
+            'rol' => $request->rol,
             'activo' => true,
-            'creado_por' => session('user_id') ?? 1, // Por defecto usuario 1 si no hay sesión
+            'creado_por' => $currentUserId,
         ]);
 
         return response()->json([
@@ -84,16 +101,32 @@ class UserController extends Controller
 
     public function update(Request $request, $id)
     {
+        $currentUserId = session('user_id');
+        $currentUser = User::find($currentUserId);
         $usuario = User::findOrFail($id);
 
-        $validator = Validator::make($request->all(), [
+        // Verificar permisos: Admin puede editar cualquiera, Bibliotecario solo su propio perfil
+        if (!$currentUser->isAdmin() && $currentUserId != $id) {
+            return response()->json([
+                'message' => 'Solo puedes editar tu propio perfil.'
+            ], 403);
+        }
+
+        $rules = [
             'name' => 'required|string|max:255',
             'email' => 'required|email|unique:users,email,' . $id,
             'dni' => 'required|string|size:8|unique:users,dni,' . $id,
             'telefono' => 'nullable|string|max:15',
-            'activo' => 'boolean',
             'password' => 'nullable|string|min:6',
-        ]);
+        ];
+
+        // Solo admin puede cambiar rol y estado activo
+        if ($currentUser->isAdmin()) {
+            $rules['activo'] = 'boolean';
+            $rules['rol'] = 'required|in:admin,bibliotecario';
+        }
+
+        $validator = Validator::make($request->all(), $rules);
 
         if ($validator->fails()) {
             return response()->json([
@@ -106,10 +139,15 @@ class UserController extends Controller
             'email' => $request->email,
             'dni' => $request->dni,
             'telefono' => $request->telefono,
-            'activo' => $request->activo ?? true,
         ];
 
-        // Solo actualizar password si se proporciona
+        // Solo admin puede actualizar estos campos
+        if ($currentUser->isAdmin()) {
+            $data['activo'] = $request->activo ?? true;
+            $data['rol'] = $request->rol;
+        }
+
+        // Actualizar password si se proporciona
         if ($request->filled('password')) {
             $data['password'] = Hash::make($request->password);
         }
@@ -124,10 +162,20 @@ class UserController extends Controller
 
     public function destroy($id)
     {
+        // Solo admin puede eliminar usuarios
+        $currentUserId = session('user_id');
+        $currentUser = User::find($currentUserId);
+
+        if (!$currentUser || !$currentUser->isAdmin()) {
+            return response()->json([
+                'message' => 'Solo los administradores pueden eliminar usuarios.'
+            ], 403);
+        }
+
         $usuario = User::findOrFail($id);
 
         // No permitir eliminar si tiene registros asociados
-        if ($usuario->librosRegistrados()->count() > 0 || 
+        if ($usuario->librosRegistrados()->count() > 0 ||
             $usuario->prestamosRealizados()->count() > 0) {
             return response()->json([
                 'message' => 'No se puede eliminar el usuario porque tiene registros asociados (libros o préstamos)'
@@ -135,7 +183,7 @@ class UserController extends Controller
         }
 
         // No permitir que un usuario se elimine a sí mismo
-        if ($usuario->id === session("user_id")) {
+        if ($usuario->id === $currentUserId) {
             return response()->json([
                 'message' => 'No puedes eliminar tu propio usuario'
             ], 422);
@@ -148,13 +196,22 @@ class UserController extends Controller
         ]);
     }
 
-    // Cambiar estado activo/inactivo
     public function toggleActivo($id)
     {
+        // Solo admin puede cambiar estado
+        $currentUserId = session('user_id');
+        $currentUser = User::find($currentUserId);
+
+        if (!$currentUser || !$currentUser->isAdmin()) {
+            return response()->json([
+                'message' => 'Solo los administradores pueden cambiar el estado de usuarios.'
+            ], 403);
+        }
+
         $usuario = User::findOrFail($id);
 
         // No permitir desactivar el propio usuario
-        if ($usuario->id === session("user_id")) {
+        if ($usuario->id === $currentUserId) {
             return response()->json([
                 'message' => 'No puedes desactivar tu propio usuario'
             ], 422);
@@ -172,9 +229,10 @@ class UserController extends Controller
     // Obtener usuario autenticado actual
     public function me()
     {
-        $usuario = Auth::user();
-        $usuario->load('creadoPor');
-        $usuario->loadCount(['librosRegistrados', 'prestamosRealizados']);
+        $userId = session('user_id');
+        $usuario = User::with('creadoPor')
+            ->withCount(['librosRegistrados', 'prestamosRealizados'])
+            ->find($userId);
 
         return response()->json($usuario);
     }

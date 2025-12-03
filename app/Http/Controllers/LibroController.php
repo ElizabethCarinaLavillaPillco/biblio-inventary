@@ -8,14 +8,11 @@ use App\Models\Categoria;
 use App\Models\Ubicacion;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use PhpOffice\PhpSpreadsheet\IOFactory;
 
 class LibroController extends Controller
 {
-    // En app/Http/Controllers/LibroController.php
-
     public function index(Request $request)
     {
         $query = Libro::with(['autor', 'categoria', 'ubicacion']);
@@ -49,10 +46,7 @@ class LibroController extends Controller
         }
 
         $libros = $query->latest()->paginate(20);
-        
-        // Log para depuración
-        \Log::info('Libros recuperados: ' . $libros->count());
-        
+
         return response()->json($libros);
     }
 
@@ -80,18 +74,31 @@ class LibroController extends Controller
             ], 422);
         }
 
-        $data = $request->all();
-        
-        // OBTENER EL ID DEL USUARIO DE LA SESIÓN. ESTO ES CLAVE.
-        $data['registrado_por'] = session('user_id');
+        // Obtener el ID del usuario desde la sesión
+        $userId = session('user_id');
 
-        // Si no hay sesión, es un error del frontend. No usar un valor por defecto.
-        if (!$data['registrado_por']) {
-            return response()->json(['message' => 'Usuario no autenticado. No se puede registrar el libro.'], 401);
+        // Debug: Log para ver qué está pasando
+        \Log::info('Intentando registrar libro', [
+            'session_user_id' => $userId,
+            'session_all' => session()->all(),
+            'request_cookies' => $request->cookies->all()
+        ]);
+
+        if (!$userId) {
+            return response()->json([
+                'message' => 'Sesión no válida. Por favor, cierra sesión e inicia nuevamente.',
+                'debug' => [
+                    'session_id' => session()->getId(),
+                    'has_user_id' => session()->has('user_id')
+                ]
+            ], 401);
         }
-        
+
+        $data = $request->all();
+        $data['registrado_por'] = $userId;
+
         // Si está en mal estado y se descarta a biblioteca comunitaria, quitar ubicación
-        if ($request->estado_libro === 'mal estado' && 
+        if ($request->estado_libro === 'mal estado' &&
             $request->destino_mal_estado === 'descartado a biblioteca comunitaria') {
             $data['ubicacion_id'] = null;
             $data['estado_actual'] = 'biblioteca comunitaria';
@@ -108,15 +115,15 @@ class LibroController extends Controller
 
     public function show($id)
     {
-            $libro = Libro::with([
-                'autor', 
-                'categoria', 
-                'ubicacion', 
-                'registradoPor',
-                'prestamoActivo.prestadoPor'
-            ])->findOrFail($id);
+        $libro = Libro::with([
+            'autor',
+            'categoria',
+            'ubicacion',
+            'registradoPor',
+            'prestamoActivo.prestadoPor'
+        ])->findOrFail($id);
 
-            return response()->json($libro);
+        return response()->json($libro);
     }
 
     public function update(Request $request, $id)
@@ -145,9 +152,6 @@ class LibroController extends Controller
             ], 422);
         }
 
-        // ----- LA SOLUCIÓN DEFINITIVA -----
-        // Construimos el array de datos solo con los campos que se pueden actualizar.
-        // NUNCA incluimos 'registrado_por' aquí.
         $data = [
             'titulo' => $request->titulo,
             'autor_id' => $request->autor_id,
@@ -163,9 +167,9 @@ class LibroController extends Controller
             'destino_mal_estado' => $request->destino_mal_estado,
             'estado_actual' => $request->estado_actual,
         ];
-        
+
         // Si está en mal estado y se descarta a biblioteca comunitaria, quitar ubicación
-        if ($request->estado_libro === 'mal estado' && 
+        if ($request->estado_libro === 'mal estado' &&
             $request->destino_mal_estado === 'descartado a biblioteca comunitaria') {
             $data['ubicacion_id'] = null;
             $data['estado_actual'] = 'biblioteca comunitaria';
@@ -184,7 +188,6 @@ class LibroController extends Controller
     {
         $libro = Libro::findOrFail($id);
 
-        // Verificar si tiene préstamos activos
         if ($libro->prestamos()->where('estado', 'activo')->exists()) {
             return response()->json([
                 'message' => 'No se puede eliminar el libro porque tiene préstamos activos'
@@ -198,7 +201,6 @@ class LibroController extends Controller
         ]);
     }
 
-    // Carga masiva desde Excel
     public function cargaMasiva(Request $request)
     {
         $validator = Validator::make($request->all(), [
@@ -209,6 +211,14 @@ class LibroController extends Controller
             return response()->json([
                 'errors' => $validator->errors()
             ], 422);
+        }
+
+        // Verificar sesión
+        $userId = session('user_id');
+        if (!$userId) {
+            return response()->json([
+                'message' => 'Sesión no válida para carga masiva.'
+            ], 401);
         }
 
         try {
@@ -222,16 +232,13 @@ class LibroController extends Controller
             $sinDatos = [];
             $errores = [];
 
-            // Empezar desde la fila 2 (asumiendo que la fila 1 es encabezado)
             for ($i = 1; $i < count($rows); $i++) {
                 $row = $rows[$i];
-                
-                // Obtener datos básicos (Titulo, Autor, Precio)
+
                 $titulo = trim($row[0] ?? '');
                 $autorNombre = trim($row[1] ?? '');
                 $precio = $row[2] ?? null;
 
-                // Validar datos mínimos
                 if (empty($titulo) || empty($autorNombre)) {
                     $sinDatos[] = [
                         'fila' => $i + 1,
@@ -241,7 +248,6 @@ class LibroController extends Controller
                     continue;
                 }
 
-                // Verificar duplicados
                 $existe = Libro::where('titulo', $titulo)
                     ->whereHas('autor', function($q) use ($autorNombre) {
                         $q->where('nombre', $autorNombre);
@@ -259,18 +265,16 @@ class LibroController extends Controller
                 }
 
                 try {
-                    // Buscar o crear autor
                     $autor = Autor::firstOrCreate(['nombre' => $autorNombre]);
 
-                    // Crear libro con datos mínimos
                     $libro = Libro::create([
                         'titulo' => $titulo,
                         'autor_id' => $autor->id,
-                        'categoria_id' => 1, // Categoría por defecto (crear una "Sin categoría")
+                        'categoria_id' => 1,
                         'precio' => $precio ? floatval($precio) : null,
                         'estado_libro' => 'normal',
                         'estado_actual' => 'en biblioteca',
-                        'registrado_por' => session("user_id")
+                        'registrado_por' => $userId
                     ]);
 
                     $registrados[] = [

@@ -9,14 +9,16 @@ return [
     'encrypt' => false,
     'files' => storage_path('framework/sessions'),
     'connection' => env('SESSION_CONNECTION'),
-    'table' => 'sessions',
+    'table' => env('SESSION_TABLE', 'sessions'),
     'store' => env('SESSION_STORE'),
     'lottery' => [2, 100],
-    'cookie' => env('SESSION_COOKIE', 'biblioteca_session'),
+    'cookie' => env(
+        'SESSION_COOKIE',
+        Illuminate\Support\Str::slug(env('APP_NAME', 'laravel'), '_').'_session'
+    ),
     'path' => '/',
     'domain' => env('SESSION_DOMAIN'),
     'secure' => env('SESSION_SECURE_COOKIE', false),
     'http_only' => true,
-    'same_site' => 'lax',
-    'partitioned' => false,
+    'same_site' => 'lax', // ⬅️ IMPORTANTE para CORS
 ];

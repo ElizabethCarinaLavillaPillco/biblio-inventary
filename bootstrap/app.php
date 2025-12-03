@@ -12,12 +12,14 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware) {
-        $middleware->statefulApi();
-        
-        // Habilitar sesiones en API
-        $middleware->api(prepend: [
-            \Illuminate\Session\Middleware\StartSession::class,
+        // Registrar los alias de middleware
+        $middleware->alias([
+            'auth.simple' => \App\Http\Middleware\SimpleAuth::class,
+            'admin.only' => \App\Http\Middleware\AdminOnly::class,
         ]);
+
+        // ⚡ AGREGAR: Configuración para sesiones con SPA
+        $middleware->statefulApi();
     })
     ->withExceptions(function (Exceptions $exceptions) {
         //

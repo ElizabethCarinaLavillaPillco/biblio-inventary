@@ -13,14 +13,17 @@ return new class extends Migration
             
             // Información Principal
             $table->string('titulo', 255);
+            $table->string('isbn', 13)->nullable();
             $table->foreignId('autor_id')->constrained('autores')->onDelete('restrict');
             $table->foreignId('categoria_id')->constrained('categorias')->onDelete('restrict');
             $table->decimal('precio', 10, 2)->nullable();
             $table->foreignId('ubicacion_id')->nullable()->constrained('ubicaciones')->onDelete('set null');
+            $table->string('signatura', 50)->nullable();
             
             // Información Secundaria (Características físicas)
             $table->integer('numero_paginas')->nullable();
             $table->string('editorial', 100)->nullable();
+            $table->year('anio_publicacion')->nullable();
             $table->enum('tamanio', ['pequeño', 'mediano', 'grande'])->nullable();
             $table->string('color_forro', 50)->nullable();
             $table->enum('procedencia', ['ministerio de cultura', 'donaciones'])->nullable();
@@ -28,6 +31,7 @@ return new class extends Migration
             
             // Para libros en mal estado
             $table->enum('destino_mal_estado', ['aun en biblioteca', 'descartado a biblioteca comunitaria', 'n/a'])->default('n/a');
+            $table->text('notas')->nullable();
             
             // Estado actual del libro
             $table->enum('estado_actual', ['en biblioteca', 'prestado', 'perdido', 'biblioteca comunitaria'])->default('en biblioteca');

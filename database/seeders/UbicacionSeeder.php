@@ -9,28 +9,52 @@ class UbicacionSeeder extends Seeder
 {
     public function run(): void
     {
-        $anaqueles = ['A', 'B', 'C'];
-        $lados = ['A', 'B']; // A = Izquierdo, B = Derecho
-        $niveles = [1, 2, 3, 4, 5];
-        $secciones = ['A', 'B', 'C', 'D'];
+        $ubicaciones = [
+            // Anaquel A
+            ['anaquel' => 'A', 'lado' => 'A', 'nivel' => 1, 'seccion' => 'A'],
+            ['anaquel' => 'A', 'lado' => 'A', 'nivel' => 1, 'seccion' => 'B'],
+            ['anaquel' => 'A', 'lado' => 'A', 'nivel' => 1, 'seccion' => 'C'],
+            ['anaquel' => 'A', 'lado' => 'A', 'nivel' => 2, 'seccion' => 'A'],
+            ['anaquel' => 'A', 'lado' => 'A', 'nivel' => 2, 'seccion' => 'B'],
+            ['anaquel' => 'A', 'lado' => 'A', 'nivel' => 2, 'seccion' => 'C'],
+            ['anaquel' => 'A', 'lado' => 'B', 'nivel' => 1, 'seccion' => 'A'],
+            ['anaquel' => 'A', 'lado' => 'B', 'nivel' => 1, 'seccion' => 'B'],
+            ['anaquel' => 'A', 'lado' => 'B', 'nivel' => 2, 'seccion' => 'A'],
+            ['anaquel' => 'A', 'lado' => 'B', 'nivel' => 2, 'seccion' => 'B'],
 
-        foreach ($anaqueles as $anaquel) {
-            foreach ($lados as $lado) {
-                foreach ($niveles as $nivel) {
-                    foreach ($secciones as $seccion) {
-                        $codigo = Ubicacion::generarCodigo($anaquel, $lado, $nivel, $seccion);
-                        
-                        Ubicacion::create([
-                            'anaquel' => $anaquel,
-                            'lado' => $lado,
-                            'nivel' => $nivel,
-                            'seccion' => $seccion,
-                            'codigo' => $codigo,
-                            'activo' => true
-                        ]);
-                    }
-                }
-            }
+            // Anaquel B
+            ['anaquel' => 'B', 'lado' => 'A', 'nivel' => 1, 'seccion' => 'A'],
+            ['anaquel' => 'B', 'lado' => 'A', 'nivel' => 1, 'seccion' => 'B'],
+            ['anaquel' => 'B', 'lado' => 'A', 'nivel' => 2, 'seccion' => 'A'],
+            ['anaquel' => 'B', 'lado' => 'A', 'nivel' => 2, 'seccion' => 'B'],
+            ['anaquel' => 'B', 'lado' => 'B', 'nivel' => 1, 'seccion' => 'A'],
+            ['anaquel' => 'B', 'lado' => 'B', 'nivel' => 1, 'seccion' => 'B'],
+
+            // Anaquel C
+            ['anaquel' => 'C', 'lado' => 'A', 'nivel' => 1, 'seccion' => 'A'],
+            ['anaquel' => 'C', 'lado' => 'A', 'nivel' => 1, 'seccion' => 'B'],
+            ['anaquel' => 'C', 'lado' => 'A', 'nivel' => 2, 'seccion' => 'A'],
+            ['anaquel' => 'C', 'lado' => 'B', 'nivel' => 1, 'seccion' => 'A'],
+        ];
+
+        foreach ($ubicaciones as $ub) {
+            $codigo = Ubicacion::generarCodigo(
+                $ub['anaquel'],
+                $ub['lado'],
+                $ub['nivel'],
+                $ub['seccion']
+            );
+
+            Ubicacion::create([
+                'anaquel' => $ub['anaquel'],
+                'lado' => $ub['lado'],
+                'nivel' => $ub['nivel'],
+                'seccion' => $ub['seccion'],
+                'codigo' => $codigo,
+                'activo' => true,
+            ]);
         }
+
+        $this->command->info('✓ ' . count($ubicaciones) . ' ubicaciones creadas');
     }
 }

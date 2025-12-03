@@ -16,6 +16,7 @@ return new class extends Migration
             $table->string('dni', 8)->unique();
             $table->string('telefono', 15)->nullable();
             $table->boolean('activo')->default(true);
+            $table->enum('rol', ['admin', 'bibliotecario'])->default('bibliotecario');
             $table->timestamp('email_verified_at')->nullable();
             $table->rememberToken();
             $table->foreignId('creado_por')->nullable()->constrained('users')->onDelete('set null');
