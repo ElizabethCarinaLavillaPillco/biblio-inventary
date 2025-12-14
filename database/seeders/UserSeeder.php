@@ -12,35 +12,55 @@ class UserSeeder extends Seeder
     {
         // Usuario 1 - Administrador principal
         $admin = User::create([
-            'name' => 'María González',
-            'email' => 'maria@biblioteca.com',
+            'name' => 'Admin Principal',
+            'email' => 'admin@biblioteca.com',
             'dni' => '12345678',
             'telefono' => '987654321',
-            'password' => Hash::make('biblioteca2024'),
+            'password' => Hash::make('admin123'),
             'activo' => true,
-            'creado_por' => null,
+            'rol' => 'admin',
+            'email_verified_at' => now(),
         ]);
 
-        // Usuario 2 - Personal
-        User::create([
-            'name' => 'Rosa Mendoza',
-            'email' => 'rosa@biblioteca.com',
+        // Usuario 2 - Bibliotecario
+        $maria = User::create([
+            'name' => 'María Gonzales',
+            'email' => 'maria@biblioteca.com',
             'dni' => '23456789',
             'telefono' => '987654322',
             'password' => Hash::make('biblioteca2024'),
             'activo' => true,
+            'rol' => 'bibliotecario',
             'creado_por' => $admin->id,
+            'email_verified_at' => now(),
         ]);
 
-        // Usuario 3 - Personal
-        User::create([
-            'name' => 'Carmen Flores',
-            'email' => 'carmen@biblioteca.com',
+        // Usuario 3 - Bibliotecario
+        $rosa = User::create([
+            'name' => 'Rosa Flores',
+            'email' => 'rosa@biblioteca.com',
             'dni' => '34567890',
             'telefono' => '987654323',
             'password' => Hash::make('biblioteca2024'),
             'activo' => true,
+            'rol' => 'bibliotecario',
             'creado_por' => $admin->id,
+            'email_verified_at' => now(),
         ]);
+        
+        // Usuario 4 - Bibliotecario adicional
+        User::create([
+            'name' => 'Carmen Flores',
+            'email' => 'carmen@biblioteca.com',
+            'dni' => '45678912',
+            'telefono' => '987654324',
+            'password' => Hash::make('biblioteca2024'),
+            'activo' => true,
+            'rol' => 'bibliotecario',
+            'creado_por' => $admin->id,
+            'email_verified_at' => now(),
+        ]);
+
+        $this->command->info('✓ 4 usuarios creados (1 admin, 3 bibliotecarios)');
     }
 }

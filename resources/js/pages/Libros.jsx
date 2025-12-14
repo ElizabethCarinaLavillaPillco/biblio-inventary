@@ -1,19 +1,33 @@
 // resources/js/pages/Libros.jsx
 
 import React, { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom'; // <-- IMPORTA useNavigate
+import { Link, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import Swal from 'sweetalert2';
 
 const Libros = () => {
-    const navigate = useNavigate(); // <-- USA useNavigate
+    const navigate = useNavigate();
     const [libros, setLibros] = useState([]);
     const [loading, setLoading] = useState(true);
+    
+    // Filtros
     const [search, setSearch] = useState('');
     const [filtroEstado, setFiltroEstado] = useState('');
+    const [filtroAutor, setFiltroAutor] = useState('');
+    const [filtroCategoria, setFiltroCategoria] = useState('');
+    const [filtroUbicacion, setFiltroUbicacion] = useState('');
+    
+    // Datos para selectores
+    const [autores, setAutores] = useState([]);
+    const [categorias, setCategorias] = useState([]);
+    const [ubicaciones, setUbicaciones] = useState([]);
+    
     const [pagination, setPagination] = useState({});
-    // NUEVO ESTADO para saber si hay un filtro activo desde la URL
     const [hasActiveFilter, setHasActiveFilter] = useState(false);
+
+    useEffect(() => {
+        fetchSelectores();
+    }, []);
 
     useEffect(() => {
         const params = new URLSearchParams(window.location.search);
@@ -21,34 +35,53 @@ const Libros = () => {
         const autorId = params.get('autor_id');
         const ubicacionId = params.get('ubicacion_id');
 
-        // NUEVO: Comprueba si hay algún filtro en la URL
         if (categoriaId || autorId || ubicacionId) {
             setHasActiveFilter(true);
-        } else {
-            setHasActiveFilter(false);
+            if (categoriaId) setFiltroCategoria(categoriaId);
+            if (autorId) setFiltroAutor(autorId);
+            if (ubicacionId) setFiltroUbicacion(ubicacionId);
         }
 
-        if (categoriaId) {
-            fetchLibros(1, { categoria_id: categoriaId });
-        } else if (autorId) {
-            fetchLibros(1, { autor_id: autorId });
-        } else if (ubicacionId) {
-            fetchLibros(1, { ubicacion_id: ubicacionId });
-        } else {
+        fetchLibros();
+    }, [window.location.search]);
+
+    // Aplicar filtros cuando cambien
+    useEffect(() => {
+        const timer = setTimeout(() => {
             fetchLibros();
-        }
-    }, [window.location.search]); // Se vuelve a ejecutar si la URL cambia
+        }, 500); // Debounce de 500ms
 
-    const fetchLibros = async (page = 1, additionalFilters = {}) => {
+        return () => clearTimeout(timer);
+    }, [search, filtroEstado, filtroAutor, filtroCategoria, filtroUbicacion]);
+
+    const fetchSelectores = async () => {
+        try {
+            const [autoresRes, categoriasRes, ubicacionesRes] = await Promise.all([
+                axios.get('/autores'),
+                axios.get('/categorias/all'),
+                axios.get('/ubicaciones/activas')
+            ]);
+
+            setAutores(autoresRes.data.data || autoresRes.data || []);
+            setCategorias(categoriasRes.data || []);
+            setUbicaciones(ubicacionesRes.data || []);
+        } catch (error) {
+            console.error('Error al cargar selectores:', error);
+        }
+    };
+
+    const fetchLibros = async (page = 1) => {
         try {
             setLoading(true);
             const params = {
-                search: search,
-                estado_actual: filtroEstado,
                 page: page,
-                ...additionalFilters
+                ...(search && { search }),
+                ...(filtroEstado && { estado_actual: filtroEstado }),
+                ...(filtroAutor && { autor_id: filtroAutor }),
+                ...(filtroCategoria && { categoria_id: filtroCategoria }),
+                ...(filtroUbicacion && { ubicacion_id: filtroUbicacion }),
             };
-            
+
             const response = await axios.get('/libros', { params });
             
             setLibros(response.data.data || []);
@@ -61,12 +94,14 @@ const Libros = () => {
         }
     };
 
-    // NUEVA FUNCIÓN para limpiar todos los filtros
     const clearFilters = () => {
         setSearch('');
         setFiltroEstado('');
+        setFiltroAutor('');
+        setFiltroCategoria('');
+        setFiltroUbicacion('');
         setHasActiveFilter(false);
-        navigate('/libros'); // Navega a la URL limpia sin parámetros
+        navigate('/libros');
     };
 
     const eliminarLibro = async (id, titulo) => {
@@ -103,15 +138,26 @@ const Libros = () => {
         return { backgroundColor: bg, label: text };
     };
 
+    const contarFiltrosActivos = () => {
+        let count = 0;
+        if (search) count++;
+        if (filtroEstado) count++;
+        if (filtroAutor) count++;
+        if (filtroCategoria) count++;
+        if (filtroUbicacion) count++;
+        return count;
+    };
+
+    const filtrosActivos = contarFiltrosActivos();
+
     return (
         <div style={styles.container}>
             <div style={styles.header}>
                 <h1 style={styles.title}>📚 Gestión de Libros</h1>
                 <div style={styles.actions}>
-                    {/* NUEVO BOTÓN: Solo se muestra si hay un filtro activo */}
-                    {hasActiveFilter && (
+                    {(hasActiveFilter || filtrosActivos > 0) && (
                         <button onClick={clearFilters} style={{...styles.btn, ...styles.btnClear}}>
-                            🔄 Ver Todos
+                            🔄 Limpiar Filtros {filtrosActivos > 0 && `(${filtrosActivos})`}
                         </button>
                     )}
                     <Link to="/libros/carga-masiva" style={{...styles.btn, ...styles.btnSecondary}}>
@@ -123,25 +169,63 @@ const Libros = () => {
                 </div>
             </div>
 
-            <div style={styles.filters}>
-                <input
-                    type="text"
-                    placeholder="🔍 Buscar por título o autor..."
-                    value={search}
-                    onChange={(e) => setSearch(e.target.value)}
-                    style={styles.searchInput}
-                />
-                <select
-                    value={filtroEstado}
-                    onChange={(e) => setFiltroEstado(e.target.value)}
-                    style={styles.select}
-                >
-                    <option value="">Todos los estados</option>
-                    <option value="en biblioteca">En Biblioteca</option>
-                    <option value="prestado">Prestado</option>
-                    <option value="perdido">Perdido</option>
-                    <option value="biblioteca comunitaria">Biblioteca Comunitaria</option>
-                </select>
+            <div style={styles.filtersContainer}>
+                <div style={styles.filtersRow}>
+                    <input
+                        type="text"
+                        placeholder="🔍 Buscar por título o autor..."
+                        value={search}
+                        onChange={(e) => setSearch(e.target.value)}
+                        style={styles.searchInput}
+                    />
+                    
+                    <select
+                        value={filtroEstado}
+                        onChange={(e) => setFiltroEstado(e.target.value)}
+                        style={styles.select}
+                    >
+                        <option value="">📊 Todos los estados</option>
+                        <option value="en biblioteca">✅ En Biblioteca</option>
+                        <option value="prestado">📤 Prestado</option>
+                        <option value="perdido">❌ Perdido</option>
+                        <option value="biblioteca comunitaria">🏘️ Biblioteca Comunitaria</option>
+                    </select>
+                </div>
+
+                <div style={styles.filtersRow}>
+                    <select
+                        value={filtroAutor}
+                        onChange={(e) => setFiltroAutor(e.target.value)}
+                        style={styles.select}
+                    >
+                        <option value="">✏️ Todos los autores</option>
+                        {autores.map(autor => (
+                            <option key={autor.id} value={autor.id}>{autor.nombre}</option>
+                        ))}
+                    </select>
+
+                    <select
+                        value={filtroCategoria}
+                        onChange={(e) => setFiltroCategoria(e.target.value)}
+                        style={styles.select}
+                    >
+                        <option value="">🏷️ Todas las categorías</option>
+                        {categorias.map(cat => (
+                            <option key={cat.id} value={cat.id}>{cat.nombre}</option>
+                        ))}
+                    </select>
+
+                    <select
+                        value={filtroUbicacion}
+                        onChange={(e) => setFiltroUbicacion(e.target.value)}
+                        style={styles.select}
+                    >
+                        <option value="">📍 Todas las ubicaciones</option>
+                        {ubicaciones.map(ub => (
+                            <option key={ub.id} value={ub.id}>{ub.codigo}</option>
+                        ))}
+                    </select>
+                </div>
             </div>
 
             {loading ? (
@@ -149,13 +233,25 @@ const Libros = () => {
             ) : libros.length === 0 ? (
                 <div style={styles.emptyState}>
                     <div style={styles.emptyIcon}>📚</div>
-                    <p>No se encontraron libros</p>
-                    <Link to="/libros/registrar" style={{...styles.btn, ...styles.btnPrimary, marginTop: '20px'}}>
-                        ➕ Registrar Primer Libro
-                    </Link>
+                    <p>No se encontraron libros con los filtros seleccionados</p>
+                    {filtrosActivos > 0 && (
+                        <button onClick={clearFilters} style={{...styles.btn, ...styles.btnPrimary, marginTop: '20px'}}>
+                            🔄 Limpiar Filtros
+                        </button>
+                    )}
+                    {filtrosActivos === 0 && (
+                        <Link to="/libros/registrar" style={{...styles.btn, ...styles.btnPrimary, marginTop: '20px'}}>
+                            ➕ Registrar Primer Libro
+                        </Link>
+                    )}
                 </div>
             ) : (
                 <>
+                    <div style={styles.resultsInfo}>
+                        Mostrando {libros.length} de {pagination.total || 0} libros
+                        {filtrosActivos > 0 && ` (${filtrosActivos} filtro${filtrosActivos > 1 ? 's' : ''} activo${filtrosActivos > 1 ? 's' : ''})`}
+                    </div>
+
                     <div style={styles.tableContainer}>
                         <table style={styles.table}>
                             <thead>
@@ -236,7 +332,11 @@ const Libros = () => {
                             <button
                                 onClick={() => fetchLibros(pagination.current_page - 1)}
                                 disabled={pagination.current_page === 1}
-                                style={styles.pageBtn}
+                                style={{
+                                    ...styles.pageBtn,
+                                    opacity: pagination.current_page === 1 ? 0.5 : 1,
+                                    cursor: pagination.current_page === 1 ? 'not-allowed' : 'pointer'
+                                }}
                             >
                                 ← Anterior
                             </button>
@@ -246,7 +346,11 @@ const Libros = () => {
                             <button
                                 onClick={() => fetchLibros(pagination.current_page + 1)}
                                 disabled={pagination.current_page === pagination.last_page}
-                                style={styles.pageBtn}
+                                style={{
+                                    ...styles.pageBtn,
+                                    opacity: pagination.current_page === pagination.last_page ? 0.5 : 1,
+                                    cursor: pagination.current_page === pagination.last_page ? 'not-allowed' : 'pointer'
+                                }}
                             >
                                 Siguiente →
                             </button>
@@ -258,19 +362,20 @@ const Libros = () => {
     );
 };
 
-// ... (tus estilos existentes)
 const styles = {
     container: { padding: '20px' },
-    header: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '30px', flexWrap: 'wrap', gap: '15px' },
+    header: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '15px' },
     title: { fontSize: '32px', margin: 0, color: '#333' },
-    actions: { display: 'flex', gap: '10px' },
+    actions: { display: 'flex', gap: '10px', flexWrap: 'wrap' },
     btn: { padding: '12px 24px', borderRadius: '8px', textDecoration: 'none', fontWeight: '600', fontSize: '16px', border: 'none', cursor: 'pointer', transition: 'all 0.3s', display: 'inline-block' },
     btnPrimary: { backgroundColor: '#4CAF50', color: '#fff' },
     btnSecondary: { backgroundColor: '#2196F3', color: '#fff' },
-    btnClear: { backgroundColor: '#9E9E9E', color: '#fff' }, // <-- NUEVO ESTILO
-    filters: { display: 'flex', gap: '15px', marginBottom: '20px', flexWrap: 'wrap' },
+    btnClear: { backgroundColor: '#9E9E9E', color: '#fff' },
+    filtersContainer: { backgroundColor: '#fff', padding: '20px', borderRadius: '12px', marginBottom: '20px', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' },
+    filtersRow: { display: 'flex', gap: '15px', marginBottom: '15px', flexWrap: 'wrap' },
     searchInput: { flex: 1, minWidth: '300px', padding: '12px 20px', fontSize: '16px', border: '2px solid #e0e0e0', borderRadius: '8px', outline: 'none' },
-    select: { padding: '12px 20px', fontSize: '16px', border: '2px solid #e0e0e0', borderRadius: '8px', outline: 'none', cursor: 'pointer' },
+    select: { flex: 1, minWidth: '200px', padding: '12px 20px', fontSize: '16px', border: '2px solid #e0e0e0', borderRadius: '8px', outline: 'none', cursor: 'pointer', backgroundColor: '#fff' },
+    resultsInfo: { marginBottom: '15px', fontSize: '14px', color: '#666', fontWeight: '600' },
     loading: { textAlign: 'center', padding: '50px', fontSize: '18px', color: '#666' },
     emptyState: { textAlign: 'center', padding: '50px', backgroundColor: '#fff', borderRadius: '12px', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' },
     emptyIcon: { fontSize: '64px', marginBottom: '20px' },

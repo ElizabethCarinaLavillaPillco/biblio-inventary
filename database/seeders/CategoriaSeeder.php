@@ -10,16 +10,24 @@ class CategoriaSeeder extends Seeder
     public function run(): void
     {
         $categorias = [
-            'Sin Categoría', // ID 1 - default
-            'Ficción',
-            'Literatura Infantil',
+            // Las mismas categorías del seeder completo
+            'Literatura Latinoamericana',
             'Historia del Perú',
-            'Ciencias Naturales',
-            'Matemáticas',
+            'Ciencias Sociales',
             'Filosofía',
             'Poesía',
-            'Teatro',
+            'Cuentos',
+            'Novelas',
+            'Ensayos',
             'Biografías',
+            'Ciencia y Tecnología',
+            
+            // Adicionales del seeder anterior
+            'Sin Categoría',
+            'Ficción',
+            'Literatura Infantil',
+            'Matemáticas',
+            'Teatro',
             'Autoayuda',
             'Cocina',
             'Arte',
@@ -30,6 +38,8 @@ class CategoriaSeeder extends Seeder
             'Derecho',
             'Medicina',
             'Literatura Peruana',
+            'Terror', // Para compatibilidad con DatosPruebaSeeder
+            'Suspenso', // Para compatibilidad con DatosPruebaSeeder
         ];
 
         foreach ($categorias as $nombre) {

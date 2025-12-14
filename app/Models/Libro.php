@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Carbon\Carbon;
 use App\Traits\Auditable;
 
 class Libro extends Model
@@ -13,15 +14,22 @@ class Libro extends Model
 
     protected $fillable = [
         'titulo',
-        'isbn',
+        'tipo_item',
         'autor_id',
+        'isbn',
+        'issn',
+        'coleccion_id',
         'categoria_id',
+        'clasificacion_cdd',
+        'codigo_cdd',
         'precio',
         'ubicacion_id',
-        'signatura',
         'numero_paginas',
         'editorial',
         'anio_publicacion',
+        'idioma',
+        'resumen',
+        'notas',
         'tamanio',
         'color_forro',
         'procedencia',
@@ -29,7 +37,6 @@ class Libro extends Model
         'destino_mal_estado',
         'estado_actual',
         'tipo_prestamo',
-        'notas',
         'registrado_por'
     ];
 
@@ -50,6 +57,11 @@ class Libro extends Model
         return $this->belongsTo(Categoria::class);
     }
 
+    public function coleccion()
+    {
+        return $this->belongsTo(Coleccion::class);
+    }
+
     public function ubicacion()
     {
         return $this->belongsTo(Ubicacion::class);
@@ -67,7 +79,7 @@ class Libro extends Model
 
     public function prestamoActivo()
     {
-        return $this->hasOne(Prestamo::class)->where('estado', 'activo')->latest();
+        return $this->hasOne(Prestamo::class)->whereIn('estado', ['aprobado', 'en_curso'])->latest();
     }
 
     // Scopes
@@ -86,6 +98,11 @@ class Libro extends Model
         return $query->where('estado_actual', 'perdido');
     }
 
+    public function scopePublicos($query)
+    {
+        return $query->whereNotIn('estado_actual', ['perdido', 'biblioteca comunitaria']);
+    }
+
     // Métodos auxiliares
     public function getEstadoColorAttribute()
     {
@@ -98,27 +115,49 @@ class Libro extends Model
         };
     }
 
-    // Generar signatura automática si no existe
-    public static function generarSignatura($categoriaId, $autorId)
+    public function estaDisponible()
     {
-        $categoria = Categoria::find($categoriaId);
-        $autor = Autor::find($autorId);
-        
-        if (!$categoria || !$autor) {
-            return null;
+        return $this->estado_actual === 'en biblioteca';
+    }
+
+    public function getFechaDisponibilidadEstimada()
+    {
+        if ($this->estaDisponible()) {
+            return now();
         }
 
-        // Ejemplo: FICT-GAR-001 (Ficción - García - número correlativo)
-        $prefijoCat = strtoupper(substr($categoria->nombre, 0, 4));
-        $prefijoAut = strtoupper(substr($autor->nombre, 0, 3));
-        
-        $ultimo = self::where('categoria_id', $categoriaId)
-            ->where('autor_id', $autorId)
-            ->orderBy('id', 'desc')
-            ->first();
-        
-        $numero = $ultimo ? (intval(substr($ultimo->signatura, -3)) + 1) : 1;
-        
-        return $prefijoCat . '-' . $prefijoAut . '-' . str_pad($numero, 3, '0', STR_PAD_LEFT);
+        $prestamoActivo = $this->prestamoActivo;
+        if ($prestamoActivo) {
+            // Agregar 5 días de margen después de la fecha de devolución
+            return $prestamoActivo->fecha_fin->addDays(5);
+        }
+
+        return null;
+    }
+
+    public function getClasificacionCddNombreAttribute()
+    {
+        $nombres = [
+            '000' => 'Ciencias de la Computación, Información y Obras Generales',
+            '100' => 'Filosofía y Psicología',
+            '200' => 'Religión y Teología',
+            '300' => 'Ciencias Sociales',
+            '400' => 'Lenguas',
+            '500' => 'Ciencias Naturales y Matemáticas',
+            '600' => 'Tecnología y Ciencias Aplicadas',
+            '700' => 'Artes y Recreación',
+            '800' => 'Literatura',
+            '900' => 'Historia y Geografía'
+        ];
+
+        return $nombres[$this->clasificacion_cdd] ?? 'Sin clasificar';
+    }
+
+    public function getCodigoCddCompletoAttribute()
+    {
+        if ($this->clasificacion_cdd && $this->codigo_cdd) {
+            return $this->clasificacion_cdd . '/' . $this->codigo_cdd;
+        }
+        return null;
     }
 }

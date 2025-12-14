@@ -13,17 +13,37 @@ return new class extends Migration
             
             // Información Principal
             $table->string('titulo', 255);
-            $table->string('isbn', 13)->nullable();
+            $table->enum('tipo_item', [
+                'libro', 'folleto', 'traduccion', 'revista', 
+                'tesis', 'manual', 'diccionario', 'otro'
+            ])->default('libro');
+
             $table->foreignId('autor_id')->constrained('autores')->onDelete('restrict');
+            $table->string('isbn', 20)->nullable();
+            $table->string('issn', 20)->nullable();
+            $table->foreignId('coleccion_id')->nullable()->constrained('colecciones')->onDelete('set null');
+            
+            // Clasificación Decimal Dewey
             $table->foreignId('categoria_id')->constrained('categorias')->onDelete('restrict');
+            $table->enum('clasificacion_cdd', [
+                '000', '100', '200', '300', '400', 
+                '500', '600', '700', '800', '900'
+            ])->nullable();
+            $table->string('codigo_cdd', 50)->nullable();
+
             $table->decimal('precio', 10, 2)->nullable();
             $table->foreignId('ubicacion_id')->nullable()->constrained('ubicaciones')->onDelete('set null');
             $table->string('signatura', 50)->nullable();
             
+            // Información adicional
+            $table->year('anio_publicacion')->nullable();
+            $table->string('idioma', 50)->default('Español');
+            $table->text('resumen')->nullable();
+            $table->text('notas')->nullable();
+
             // Información Secundaria (Características físicas)
             $table->integer('numero_paginas')->nullable();
             $table->string('editorial', 100)->nullable();
-            $table->year('anio_publicacion')->nullable();
             $table->enum('tamanio', ['pequeño', 'mediano', 'grande'])->nullable();
             $table->string('color_forro', 50)->nullable();
             $table->enum('procedencia', ['ministerio de cultura', 'donaciones'])->nullable();
@@ -31,7 +51,6 @@ return new class extends Migration
             
             // Para libros en mal estado
             $table->enum('destino_mal_estado', ['aun en biblioteca', 'descartado a biblioteca comunitaria', 'n/a'])->default('n/a');
-            $table->text('notas')->nullable();
             
             // Estado actual del libro
             $table->enum('estado_actual', ['en biblioteca', 'prestado', 'perdido', 'biblioteca comunitaria'])->default('en biblioteca');

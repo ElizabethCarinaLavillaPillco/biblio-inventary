@@ -10,29 +10,29 @@ class AutorSeeder extends Seeder
     public function run(): void
     {
         $autores = [
-            // Autores Peruanos
+            // Autores Peruanos (los mismos que en el completo)
+            'Gabriel García Márquez',
             'Mario Vargas Llosa',
-            'César Vallejo',
+            'Isabel Allende',
+            'Jorge Luis Borges',
+            'Pablo Neruda',
+            'Julio Cortázar',
+            'Octavio Paz',
+            'Carlos Fuentes',
+            'José Saramago',
+            'Gabriela Mistral',
             'José María Arguedas',
             'Ciro Alegría',
+            'César Vallejo',
             'Alfredo Bryce Echenique',
+            'Manuel Scorza',
+            
+            // Adicionales del seeder anterior
             'Ricardo Palma',
             'Abraham Valdelomar',
             'Martín Adán',
             'Julio Ramón Ribeyro',
-            'Manuel Scorza',
-
-            // Autores Latinoamericanos
-            'Gabriel García Márquez',
-            'Jorge Luis Borges',
-            'Isabel Allende',
             'Paulo Coelho',
-            'Julio Cortázar',
-            'Pablo Neruda',
-            'Octavio Paz',
-            'Carlos Fuentes',
-
-            // Autores Clásicos
             'Miguel de Cervantes',
             'William Shakespeare',
             'Jane Austen',
@@ -40,8 +40,6 @@ class AutorSeeder extends Seeder
             'Victor Hugo',
             'Fiódor Dostoyevski',
             'León Tolstói',
-
-            // Autores Contemporáneos
             'Antoine de Saint-Exupéry',
             'Agatha Christie',
             'J.K. Rowling',

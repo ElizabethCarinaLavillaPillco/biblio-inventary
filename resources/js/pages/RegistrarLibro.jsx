@@ -9,27 +9,52 @@ const RegistrarLibro = () => {
     const navigate = useNavigate();
     const [loading, setLoading] = useState(false);
     const [categorias, setCategorias] = useState([]);
+    const [colecciones, setColecciones] = useState([]);
     const [ubicaciones, setUbicaciones] = useState([]);
     const [autoresSugeridos, setAutoresSugeridos] = useState([]);
     const [mostrarSugerencias, setMostrarSugerencias] = useState(false);
 
     const [formData, setFormData] = useState({
+        // Campos básicos
         titulo: '',
+        tipo_item: 'libro',
         autor_nombre: '',
         autor_id: '',
+        
+        // Identificadores (opcionales)
+        isbn: '',
+        issn: '',
+        
+        // Clasificación
         categoria_id: '',
-        precio: '',
-        numero_paginas: '',
+        coleccion_id: '',
+        clasificacion_cdd: '',
+        codigo_cdd: '',
+        
+        // Publicación
         editorial: '',
+        anio_publicacion: '',
+        idioma: 'Español',
+        
+        // Económico
+        precio: '',
+        
+        // Descripción
+        resumen: '',
+        notas: '',
+        
+        // Físico
+        numero_paginas: '',
         tamanio: '',
         color_forro: '',
+        
+        // Origen y estado
         procedencia: '',
         estado_libro: 'normal',
         destino_mal_estado: 'n/a',
         estado_actual: 'en biblioteca',
     });
 
-    // --- ESTADO Y FUNCIONES PARA UBICACIÓN (AÑADIDAS) ---
     const [ubicacionParts, setUbicacionParts] = useState({
         anaquel: '',
         lado: '',
@@ -37,6 +62,41 @@ const RegistrarLibro = () => {
         seccion: '',
     });
     const [ubicacionId, setUbicacionId] = useState('');
+    const [mostrarCamposAvanzados, setMostrarCamposAvanzados] = useState(false);
+
+    useEffect(() => {
+        fetchCategorias();
+        fetchColecciones();
+        fetchUbicaciones();
+    }, []);
+
+    const fetchCategorias = async () => {
+        try {
+            const response = await axios.get('/categorias/all');
+            setCategorias(response.data);
+        } catch (error) {
+            console.error('Error al cargar categorías:', error);
+            Swal.fire('Error', 'No se pudieron cargar las categorías', 'error');
+        }
+    };
+
+    const fetchColecciones = async () => {
+        try {
+            const response = await axios.get('/colecciones');
+            setColecciones(response.data.data || response.data);
+        } catch (error) {
+            console.error('Error al cargar colecciones:', error);
+        }
+    };
+
+    const fetchUbicaciones = async () => {
+        try {
+            const response = await axios.get('/ubicaciones/activas');
+            setUbicaciones(response.data);
+        } catch (error) {
+            console.error('Error al cargar ubicaciones:', error);
+        }
+    };
 
     const findOrCreateUbicacion = async (parts) => {
         if (!parts.anaquel || !parts.lado || !parts.nivel || !parts.seccion) {
@@ -71,8 +131,10 @@ const RegistrarLibro = () => {
         if (result.isConfirmed) {
             try {
                 const response = await axios.post('/ubicaciones', {
-                    ...parts,
+                    anaquel: parts.anaquel,
+                    lado: parts.lado,
                     nivel: parseInt(parts.nivel, 10),
+                    seccion: parts.seccion,
                     activo: true
                 });
                 const nuevaUbicacion = response.data.ubicacion;
@@ -81,7 +143,7 @@ const RegistrarLibro = () => {
                 Swal.fire('¡Creada!', 'La nueva ubicación ha sido registrada.', 'success');
             } catch (error) {
                 console.error('Error al crear ubicación:', error);
-                Swal.fire('Error', 'No se pudo crear la ubicación.', 'error');
+                Swal.fire('Error', error.response?.data?.message || 'No se pudo crear la ubicación.', 'error');
                 setUbicacionId('');
             }
         } else {
@@ -91,37 +153,10 @@ const RegistrarLibro = () => {
 
     const handleUbicacionChange = (e) => {
         const { name, value } = e.target;
-        // <-- CAMBIO 1: Convertir a mayúsculas si el campo es 'seccion'
         const processedValue = name === 'seccion' ? value.toUpperCase() : value;
-
         const newParts = { ...ubicacionParts, [name]: processedValue };
         setUbicacionParts(newParts);
         findOrCreateUbicacion(newParts);
-    };
-    // --- FIN DE LA LÓGICA DE UBICACIÓN ---
-
-
-    useEffect(() => {
-        fetchCategorias();
-        fetchUbicaciones();
-    }, []);
-
-    const fetchCategorias = async () => {
-        try {
-            const response = await axios.get('/categorias/all');
-            setCategorias(response.data);
-        } catch (error) {
-            console.error('Error al cargar categorías:', error);
-        }
-    };
-
-    const fetchUbicaciones = async () => {
-        try {
-            const response = await axios.get('/ubicaciones/activas');
-            setUbicaciones(response.data);
-        } catch (error) {
-            console.error('Error al cargar ubicaciones:', error);
-        }
     };
 
     const buscarAutores = async (query) => {
@@ -175,7 +210,8 @@ const RegistrarLibro = () => {
 
         if (name === 'destino_mal_estado' && value === 'descartado a biblioteca comunitaria') {
             updates.estado_actual = 'biblioteca comunitaria';
-            setUbicacionId(''); // Limpiar ubicación si se descarta
+            setUbicacionParts({ anaquel: '', lado: '', nivel: '', seccion: '' });
+            setUbicacionId('');
         }
 
         setFormData({ ...formData, ...updates });
@@ -184,6 +220,7 @@ const RegistrarLibro = () => {
     const handleSubmit = async (e) => {
         e.preventDefault();
 
+        // Validación básica
         if (!formData.titulo || !formData.autor_nombre || !formData.categoria_id) {
             Swal.fire('Error', 'Por favor completa los campos obligatorios (Título, Autor, Categoría)', 'error');
             return;
@@ -192,25 +229,78 @@ const RegistrarLibro = () => {
         setLoading(true);
 
         try {
+            // Crear o buscar autor
             let autorId = formData.autor_id;
             if (!autorId && formData.autor_nombre) {
-                const autorResponse = await axios.post('/autores', {
-                    nombre: formData.autor_nombre
-                });
-                autorId = autorResponse.data.autor.id;
+                try {
+                    const autorResponse = await axios.post('/autores', {
+                        nombre: formData.autor_nombre
+                    });
+                    autorId = autorResponse.data.autor.id;
+                } catch (error) {
+                    if (error.response?.status === 422) {
+                        const searchResponse = await axios.get('/autores/search', {
+                            params: { q: formData.autor_nombre }
+                        });
+                        if (searchResponse.data.length > 0) {
+                            autorId = searchResponse.data[0].id;
+                        }
+                    } else {
+                        throw error;
+                    }
+                }
             }
 
+            if (!autorId) {
+                throw new Error('No se pudo crear o encontrar el autor');
+            }
+
+            // Preparar datos para enviar
             const dataToSend = {
-                ...formData,
+                titulo: formData.titulo,
+                tipo_item: formData.tipo_item,
                 autor_id: autorId,
+                categoria_id: formData.categoria_id,
+                
+                // Identificadores (enviar solo si tienen valor)
+                isbn: formData.isbn || null,
+                issn: formData.issn || null,
+                
+                // Clasificación
+                coleccion_id: formData.coleccion_id || null,
+                clasificacion_cdd: formData.clasificacion_cdd || null,
+                codigo_cdd: formData.codigo_cdd || null,
+                
+                // Publicación
+                editorial: formData.editorial || null,
+                anio_publicacion: formData.anio_publicacion || null,
+                idioma: formData.idioma || null,
+                
+                // Económico
                 precio: formData.precio || null,
+                
+                // Ubicación
+                ubicacion_id: ubicacionId || null,
+                
+                // Descripción
+                resumen: formData.resumen || null,
+                notas: formData.notas || null,
+                
+                // Físico
                 numero_paginas: formData.numero_paginas || null,
-                ubicacion_id: ubicacionId || null, // <-- USAR EL ID CORRECTO
+                tamanio: formData.tamanio || null,
+                color_forro: formData.color_forro || null,
+                
+                // Origen y estado
+                procedencia: formData.procedencia || null,
+                estado_libro: formData.estado_libro,
+                destino_mal_estado: formData.destino_mal_estado,
+                estado_actual: formData.estado_actual,
             };
 
-            delete dataToSend.autor_nombre;
+            console.log('Enviando datos:', dataToSend);
 
-            await axios.post('/libros', dataToSend);
+            const response = await axios.post('/libros', dataToSend);
 
             Swal.fire({
                 icon: 'success',
@@ -222,7 +312,17 @@ const RegistrarLibro = () => {
             navigate('/libros');
         } catch (error) {
             console.error('Error al registrar:', error);
-            Swal.fire('Error', error.response?.data?.message || 'No se pudo registrar el libro', 'error');
+
+            let errorMessage = 'No se pudo registrar el libro';
+
+            if (error.response?.data?.errors) {
+                const errors = error.response.data.errors;
+                errorMessage = Object.values(errors).flat().join('\n');
+            } else if (error.response?.data?.message) {
+                errorMessage = error.response.data.message;
+            }
+
+            Swal.fire('Error', errorMessage, 'error');
         } finally {
             setLoading(false);
         }
@@ -230,63 +330,293 @@ const RegistrarLibro = () => {
 
     return (
         <div style={styles.container}>
-            <h1 style={styles.title}>➕ Registrar Nuevo Libro</h1>
+            <div style={styles.headerContainer}>
+                <h1 style={styles.title}>➕ Registrar Nuevo Material Bibliográfico</h1>
+                <button
+                    type="button"
+                    onClick={() => setMostrarCamposAvanzados(!mostrarCamposAvanzados)}
+                    style={styles.toggleBtn}
+                >
+                    {mostrarCamposAvanzados ? '📋 Modo Simple' : '🔧 Modo Avanzado'}
+                </button>
+            </div>
 
             <form onSubmit={handleSubmit} style={styles.form}>
-                {/* Información Principal */}
+                {/* SECCIÓN 1: INFORMACIÓN PRINCIPAL */}
                 <div style={styles.section}>
                     <h2 style={styles.sectionTitle}>📖 Información Principal</h2>
                     <div style={styles.grid}>
                         <div style={styles.formGroup}>
                             <label style={styles.label}>Título *</label>
-                            <input type="text" name="titulo" value={formData.titulo} onChange={handleChange} style={styles.input} required />
+                            <input
+                                type="text"
+                                name="titulo"
+                                value={formData.titulo}
+                                onChange={handleChange}
+                                style={styles.input}
+                                placeholder="Ingrese el título del libro"
+                                required
+                            />
+                        </div>
+
+                        <div style={styles.formGroup}>
+                            <label style={styles.label}>Tipo de Material *</label>
+                            <select
+                                name="tipo_item"
+                                value={formData.tipo_item}
+                                onChange={handleChange}
+                                style={styles.select}
+                                required
+                            >
+                                <option value="libro">Libro</option>
+                                <option value="folleto">Folleto</option>
+                                <option value="traduccion">Traducción</option>
+                                <option value="revista">Revista</option>
+                                <option value="tesis">Tesis</option>
+                                <option value="manual">Manual</option>
+                                <option value="diccionario">Diccionario</option>
+                                <option value="otro">Otro</option>
+                            </select>
                         </div>
 
                         <div style={styles.formGroup}>
                             <label style={styles.label}>Autor *</label>
                             <div style={{ position: 'relative' }}>
-                                <input type="text" value={formData.autor_nombre} onChange={handleAutorChange} onBlur={() => setTimeout(() => setMostrarSugerencias(false), 200)} style={styles.input} placeholder="Escribe el nombre del autor..." required />
+                                <input
+                                    type="text"
+                                    value={formData.autor_nombre}
+                                    onChange={handleAutorChange}
+                                    onBlur={() => setTimeout(() => setMostrarSugerencias(false), 200)}
+                                    style={styles.input}
+                                    placeholder="Escribe el nombre del autor..."
+                                    required
+                                />
                                 {mostrarSugerencias && autoresSugeridos.length > 0 && (
                                     <div style={styles.suggestions}>
                                         {autoresSugeridos.map((autor) => (
-                                            <div key={autor.id} style={styles.suggestionItem} onClick={() => seleccionarAutor(autor)}>{autor.nombre}</div>
+                                            <div
+                                                key={autor.id}
+                                                style={styles.suggestionItem}
+                                                onClick={() => seleccionarAutor(autor)}
+                                            >
+                                                {autor.nombre}
+                                            </div>
                                         ))}
                                     </div>
                                 )}
                             </div>
+                            {formData.autor_id && (
+                                <small style={{ color: '#4CAF50', fontSize: '12px' }}>
+                                    ✓ Autor existente seleccionado
+                                </small>
+                            )}
                         </div>
 
                         <div style={styles.formGroup}>
                             <label style={styles.label}>Categoría *</label>
-                            <select name="categoria_id" value={formData.categoria_id} onChange={handleChange} style={styles.select} required>
+                            <select
+                                name="categoria_id"
+                                value={formData.categoria_id}
+                                onChange={handleChange}
+                                style={styles.select}
+                                required
+                            >
                                 <option value="">Selecciona una categoría</option>
-                                {categorias.map((cat) => (<option key={cat.id} value={cat.id}>{cat.nombre}</option>))}
+                                {categorias.map((cat) => (
+                                    <option key={cat.id} value={cat.id}>{cat.nombre}</option>
+                                ))}
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                {/* SECCIÓN 2: IDENTIFICADORES (Opcional) */}
+                {mostrarCamposAvanzados && (
+                    <div style={styles.section}>
+                        <h2 style={styles.sectionTitle}>🔖 Identificadores Bibliográficos</h2>
+                        <div style={styles.grid}>
+                            <div style={styles.formGroup}>
+                                <label style={styles.label}>ISBN</label>
+                                <input
+                                    type="text"
+                                    name="isbn"
+                                    value={formData.isbn}
+                                    onChange={handleChange}
+                                    style={styles.input}
+                                    placeholder="978-3-16-148410-0"
+                                    maxLength="20"
+                                />
+                                <small style={styles.helpText}>
+                                    International Standard Book Number
+                                </small>
+                            </div>
+
+                            <div style={styles.formGroup}>
+                                <label style={styles.label}>ISSN</label>
+                                <input
+                                    type="text"
+                                    name="issn"
+                                    value={formData.issn}
+                                    onChange={handleChange}
+                                    style={styles.input}
+                                    placeholder="1234-5678"
+                                    maxLength="20"
+                                />
+                                <small style={styles.helpText}>
+                                    International Standard Serial Number (para revistas)
+                                </small>
+                            </div>
+
+                            <div style={styles.formGroup}>
+                                <label style={styles.label}>Colección</label>
+                                <select
+                                    name="coleccion_id"
+                                    value={formData.coleccion_id}
+                                    onChange={handleChange}
+                                    style={styles.select}
+                                >
+                                    <option value="">Sin colección</option>
+                                    {colecciones.map((col) => (
+                                        <option key={col.id} value={col.id}>{col.nombre}</option>
+                                    ))}
+                                </select>
+                            </div>
+
+                            <div style={styles.formGroup}>
+                                <label style={styles.label}>Clasificación Dewey (CDD)</label>
+                                <select
+                                    name="clasificacion_cdd"
+                                    value={formData.clasificacion_cdd}
+                                    onChange={handleChange}
+                                    style={styles.select}
+                                >
+                                    <option value="">Seleccionar...</option>
+                                    <option value="000">000 - Informática, conocimiento y sistemas</option>
+                                    <option value="100">100 - Filosofía y psicología</option>
+                                    <option value="200">200 - Religión</option>
+                                    <option value="300">300 - Ciencias sociales</option>
+                                    <option value="400">400 - Lenguas</option>
+                                    <option value="500">500 - Ciencias naturales y matemáticas</option>
+                                    <option value="600">600 - Tecnología y ciencias aplicadas</option>
+                                    <option value="700">700 - Artes y recreación</option>
+                                    <option value="800">800 - Literatura</option>
+                                    <option value="900">900 - Historia y geografía</option>
+                                </select>
+                            </div>
+
+                            <div style={styles.formGroup}>
+                                <label style={styles.label}>Código CDD Específico</label>
+                                <input
+                                    type="text"
+                                    name="codigo_cdd"
+                                    value={formData.codigo_cdd}
+                                    onChange={handleChange}
+                                    style={styles.input}
+                                    placeholder="Ej: 823.914"
+                                    maxLength="50"
+                                />
+                                <small style={styles.helpText}>
+                                    Código Dewey específico (subcategoría)
+                                </small>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {/* SECCIÓN 3: INFORMACIÓN DE PUBLICACIÓN */}
+                <div style={styles.section}>
+                    <h2 style={styles.sectionTitle}>📚 Información de Publicación</h2>
+                    <div style={styles.grid}>
+                        <div style={styles.formGroup}>
+                            <label style={styles.label}>Editorial</label>
+                            <input
+                                type="text"
+                                name="editorial"
+                                value={formData.editorial}
+                                onChange={handleChange}
+                                style={styles.input}
+                                placeholder="Ej: Alfaguara, Planeta"
+                            />
+                        </div>
+
+                        <div style={styles.formGroup}>
+                            <label style={styles.label}>Año de Publicación</label>
+                            <input
+                                type="number"
+                                name="anio_publicacion"
+                                value={formData.anio_publicacion}
+                                onChange={handleChange}
+                                style={styles.input}
+                                min="1000"
+                                max={new Date().getFullYear() + 1}
+                                placeholder={new Date().getFullYear().toString()}
+                            />
+                        </div>
+
+                        <div style={styles.formGroup}>
+                            <label style={styles.label}>Idioma</label>
+                            <select
+                                name="idioma"
+                                value={formData.idioma}
+                                onChange={handleChange}
+                                style={styles.select}
+                            >
+                                <option value="Español">Español</option>
+                                <option value="Inglés">Inglés</option>
+                                <option value="Francés">Francés</option>
+                                <option value="Italiano">Italiano</option>
+                                <option value="Portugués">Portugués</option>
+                                <option value="Alemán">Alemán</option>
+                                <option value="Quechua">Quechua</option>
+                                <option value="Aymara">Aymara</option>
+                                <option value="Otro">Otro</option>
                             </select>
                         </div>
 
                         <div style={styles.formGroup}>
                             <label style={styles.label}>Precio (S/.)</label>
-                            <input type="number" name="precio" value={formData.precio} onChange={handleChange} style={styles.input} step="0.01" min="0" />
+                            <input
+                                type="number"
+                                name="precio"
+                                value={formData.precio}
+                                onChange={handleChange}
+                                style={styles.input}
+                                step="0.01"
+                                min="0"
+                                placeholder="0.00"
+                            />
                         </div>
                     </div>
                 </div>
 
-                {/* SECCIÓN DE UBICACIÓN CORREGIDA */}
+                {/* SECCIÓN 4: UBICACIÓN */}
                 <div style={styles.section}>
-                    <h2 style={styles.sectionTitle}>📍 Ubicación</h2>
+                    <h2 style={styles.sectionTitle}>📍 Ubicación Física</h2>
                     <div style={styles.grid}>
                         <div style={styles.formGroup}>
                             <label style={styles.label}>Anaquel</label>
-                            <select name="anaquel" value={ubicacionParts.anaquel} onChange={handleUbicacionChange} style={styles.select}>
+                            <select
+                                name="anaquel"
+                                value={ubicacionParts.anaquel}
+                                onChange={handleUbicacionChange}
+                                style={styles.select}
+                            >
                                 <option value="">Seleccionar...</option>
                                 <option value="A">A</option>
                                 <option value="B">B</option>
                                 <option value="C">C</option>
+                                <option value="D">D</option>
+                                <option value="E">E</option>
                             </select>
                         </div>
                         <div style={styles.formGroup}>
                             <label style={styles.label}>Lado</label>
-                            <select name="lado" value={ubicacionParts.lado} onChange={handleUbicacionChange} style={styles.select}>
+                            <select
+                                name="lado"
+                                value={ubicacionParts.lado}
+                                onChange={handleUbicacionChange}
+                                style={styles.select}
+                            >
                                 <option value="">Seleccionar...</option>
                                 <option value="A">A (Izquierdo)</option>
                                 <option value="B">B (Derecho)</option>
@@ -294,11 +624,18 @@ const RegistrarLibro = () => {
                         </div>
                         <div style={styles.formGroup}>
                             <label style={styles.label}>Nivel</label>
-                            <input type="number" name="nivel" value={ubicacionParts.nivel} onChange={handleUbicacionChange} style={styles.input} min="1" placeholder="Ej: 1, 2, 3..." />
+                            <input
+                                type="number"
+                                name="nivel"
+                                value={ubicacionParts.nivel}
+                                onChange={handleUbicacionChange}
+                                style={styles.input}
+                                min="1"
+                                placeholder="1, 2, 3..."
+                            />
                         </div>
                         <div style={styles.formGroup}>
                             <label style={styles.label}>Sección</label>
-                            {/* <-- CAMBIO 2: Añadir estilo para mostrar mayúsculas en el input */}
                             <input
                                 type="text"
                                 name="seccion"
@@ -306,32 +643,72 @@ const RegistrarLibro = () => {
                                 onChange={handleUbicacionChange}
                                 style={{...styles.input, textTransform: 'uppercase'}}
                                 maxLength="1"
-                                placeholder="Ej: A, B, C..."
+                                placeholder="A, B, C..."
                             />
                         </div>
                     </div>
                     {ubicacionId && (
                         <div style={styles.ubicacionInfo}>
-                            ✅ Ubicación seleccionada: <strong>{ubicaciones.find(ub => ub.id === ubicacionId)?.codigo}</strong>
+                            ✅ Ubicación seleccionada: <strong>
+                                {ubicaciones.find(ub => ub.id === ubicacionId)?.codigo}
+                            </strong>
                         </div>
                     )}
                 </div>
 
-                {/* Características Físicas */}
+                {/* SECCIÓN 5: DESCRIPCIÓN (Modo Avanzado) */}
+                {mostrarCamposAvanzados && (
+                    <div style={styles.section}>
+                        <h2 style={styles.sectionTitle}>📝 Descripción</h2>
+                        <div style={styles.formGroup}>
+                            <label style={styles.label}>Resumen</label>
+                            <textarea
+                                name="resumen"
+                                value={formData.resumen}
+                                onChange={handleChange}
+                                style={styles.textarea}
+                                rows="4"
+                                placeholder="Breve resumen del contenido..."
+                            />
+                        </div>
+                        <div style={styles.formGroup}>
+                            <label style={styles.label}>Notas Adicionales</label>
+                            <textarea
+                                name="notas"
+                                value={formData.notas}
+                                onChange={handleChange}
+                                style={styles.textarea}
+                                rows="3"
+                                placeholder="Notas internas, observaciones..."
+                            />
+                        </div>
+                    </div>
+                )}
+
+                {/* SECCIÓN 6: CARACTERÍSTICAS FÍSICAS */}
                 <div style={styles.section}>
                     <h2 style={styles.sectionTitle}>📐 Características Físicas</h2>
                     <div style={styles.grid}>
                         <div style={styles.formGroup}>
                             <label style={styles.label}>Número de Páginas</label>
-                            <input type="number" name="numero_paginas" value={formData.numero_paginas} onChange={handleChange} style={styles.input} min="1" />
-                        </div>
-                        <div style={styles.formGroup}>
-                            <label style={styles.label}>Editorial</label>
-                            <input type="text" name="editorial" value={formData.editorial} onChange={handleChange} style={styles.input} />
+                            <input
+                                type="number"
+                                name="numero_paginas"
+                                value={formData.numero_paginas}
+                                onChange={handleChange}
+                                style={styles.input}
+                                min="1"
+                                placeholder="Ej: 250"
+                            />
                         </div>
                         <div style={styles.formGroup}>
                             <label style={styles.label}>Tamaño</label>
-                            <select name="tamanio" value={formData.tamanio} onChange={handleChange} style={styles.select}>
+                            <select
+                                name="tamanio"
+                                value={formData.tamanio}
+                                onChange={handleChange}
+                                style={styles.select}
+                            >
                                 <option value="">Seleccionar...</option>
                                 <option value="pequeño">Pequeño</option>
                                 <option value="mediano">Mediano</option>
@@ -340,19 +717,46 @@ const RegistrarLibro = () => {
                         </div>
                         <div style={styles.formGroup}>
                             <label style={styles.label}>Color de Forro</label>
-                            <input type="text" name="color_forro" value={formData.color_forro} onChange={handleChange} style={styles.input} />
+                            <input
+                                type="text"
+                                name="color_forro"
+                                value={formData.color_forro}
+                                onChange={handleChange}
+                                style={styles.input}
+                                placeholder="Ej: Azul, Rojo"
+                            />
                         </div>
                         <div style={styles.formGroup}>
                             <label style={styles.label}>Procedencia</label>
-                            <select name="procedencia" value={formData.procedencia} onChange={handleChange} style={styles.select}>
+                            <select
+                                name="procedencia"
+                                value={formData.procedencia}
+                                onChange={handleChange}
+                                style={styles.select}
+                            >
                                 <option value="">Seleccionar...</option>
                                 <option value="ministerio de cultura">Ministerio de Cultura</option>
                                 <option value="donaciones">Donaciones</option>
+                                <option value="compra">Compra</option>
+                                <option value="otro">Otro</option>
                             </select>
                         </div>
+                    </div>
+                </div>
+
+                {/* SECCIÓN 7: ESTADO */}
+                <div style={styles.section}>
+                    <h2 style={styles.sectionTitle}>⚡ Estado del Material</h2>
+                    <div style={styles.grid}>
                         <div style={styles.formGroup}>
-                            <label style={styles.label}>Estado del Libro *</label>
-                            <select name="estado_libro" value={formData.estado_libro} onChange={handleChange} style={styles.select} required>
+                            <label style={styles.label}>Estado Físico *</label>
+                            <select
+                                name="estado_libro"
+                                value={formData.estado_libro}
+                                onChange={handleChange}
+                                style={styles.select}
+                                required
+                            >
                                 <option value="nuevo">Nuevo</option>
                                 <option value="normal">Normal</option>
                                 <option value="mal estado">Mal Estado</option>
@@ -361,8 +765,14 @@ const RegistrarLibro = () => {
 
                         {formData.estado_libro === 'mal estado' && (
                             <div style={styles.formGroup}>
-                                <label style={styles.label}>Destino del Libro *</label>
-                                <select name="destino_mal_estado" value={formData.destino_mal_estado} onChange={handleChange} style={styles.select} required>
+                                <label style={styles.label}>Destino del Material *</label>
+                                <select
+                                    name="destino_mal_estado"
+                                    value={formData.destino_mal_estado}
+                                    onChange={handleChange}
+                                    style={styles.select}
+                                    required
+                                >
                                     <option value="aun en biblioteca">Aún en Biblioteca</option>
                                     <option value="descartado a biblioteca comunitaria">Descartado a Bib. Comunitaria</option>
                                 </select>
@@ -373,8 +783,21 @@ const RegistrarLibro = () => {
 
                 {/* Botones */}
                 <div style={styles.actions}>
-                    <button type="button" onClick={() => navigate('/libros')} style={{...styles.btn, ...styles.btnCancel}}>Cancelar</button>
-                    <button type="submit" disabled={loading} style={{...styles.btn, ...styles.btnSubmit}}>{loading ? 'Registrando...' : '✅ Registrar Libro'}</button>
+                    <button
+                        type="button"
+                        onClick={() => navigate('/libros')}
+                        style={{...styles.btn, ...styles.btnCancel}}
+                        disabled={loading}
+                    >
+                        Cancelar
+                    </button>
+                    <button
+                        type="submit"
+                        disabled={loading}
+                        style={{...styles.btn, ...styles.btnSubmit, opacity: loading ? 0.6 : 1}}
+                    >
+                        {loading ? '⏳ Registrando...' : '✅ Registrar Material'}
+                    </button>
                 </div>
             </form>
         </div>
@@ -382,8 +805,19 @@ const RegistrarLibro = () => {
 };
 
 const styles = {
-    container: { padding: '20px', maxWidth: '1200px' },
-    title: { fontSize: '32px', marginBottom: '30px', color: '#333' },
+    container: { padding: '20px', maxWidth: '1200px', margin: '0 auto' },
+    headerContainer: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' },
+    title: { fontSize: '32px', margin: 0, color: '#333' },
+    toggleBtn: { 
+        padding: '10px 20px', 
+        backgroundColor: '#2196F3', 
+        color: '#fff', 
+        border: 'none', 
+        borderRadius: '8px', 
+        cursor: 'pointer',
+        fontWeight: '600',
+        fontSize: '14px'
+    },
     form: { backgroundColor: '#fff', borderRadius: '12px', padding: '30px', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' },
     section: { marginBottom: '30px', paddingBottom: '20px', borderBottom: '2px solid #e0e0e0' },
     sectionTitle: { fontSize: '22px', marginBottom: '20px', color: '#2196F3' },
@@ -391,7 +825,9 @@ const styles = {
     formGroup: { display: 'flex', flexDirection: 'column' },
     label: { fontSize: '14px', fontWeight: '600', marginBottom: '8px', color: '#333' },
     input: { padding: '12px', fontSize: '16px', border: '2px solid #e0e0e0', borderRadius: '8px', outline: 'none', transition: 'border-color 0.3s' },
+    textarea: { padding: '12px', fontSize: '16px', border: '2px solid #e0e0e0', borderRadius: '8px', outline: 'none', resize: 'vertical', fontFamily: 'inherit' },
     select: { padding: '12px', fontSize: '16px', border: '2px solid #e0e0e0', borderRadius: '8px', outline: 'none', backgroundColor: '#fff', cursor: 'pointer' },
+    helpText: { fontSize: '12px', color: '#666', marginTop: '4px' },
     suggestions: { position: 'absolute', top: '100%', left: 0, right: 0, backgroundColor: '#fff', border: '2px solid #2196F3', borderRadius: '8px', marginTop: '4px', maxHeight: '200px', overflowY: 'auto', zIndex: 1000, boxShadow: '0 4px 12px rgba(0,0,0,0.15)' },
     suggestionItem: { padding: '12px', cursor: 'pointer', borderBottom: '1px solid #e0e0e0', transition: 'background-color 0.2s' },
     actions: { display: 'flex', gap: '15px', justifyContent: 'flex-end', marginTop: '30px' },

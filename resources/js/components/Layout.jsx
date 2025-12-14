@@ -29,6 +29,7 @@ const Layout = ({ children, user, onLogout }) => {
         { path: '/ubicaciones', icon: '📍', label: 'Ubicaciones', color: '#00BCD4' },
         { path: '/autores', icon: '✍️', label: 'Autores', color: '#FF5722' },
         { path: '/prestamos', icon: '📋', label: 'Préstamos', color: '#FFC107' },
+        { path: '/exportaciones', icon: '📤', label: 'Exportaciones BNP', color: '#00BCD4' },
         { path: '/usuarios', icon: '👥', label: 'Usuarios', color: '#9C27B0' },
     ];
 
