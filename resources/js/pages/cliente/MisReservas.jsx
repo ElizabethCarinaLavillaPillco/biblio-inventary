@@ -15,12 +15,25 @@ const MisReservas = () => {
 
     const fetchReservas = async () => {
         try {
-            const response = await axios.get('/cliente/reservas');
-            setReservas(response.data);
+            const response = await axios.get('/reservas');
+            console.log('Respuesta del servidor:', response.data);
+
+            // Manejar diferentes estructuras de respuesta
+            let reservasData = [];
+            if (Array.isArray(response.data)) {
+                reservasData = response.data;
+            } else if (response.data.data && Array.isArray(response.data.data)) {
+                reservasData = response.data.data;
+            } else if (response.data.reservas && Array.isArray(response.data.reservas)) {
+                reservasData = response.data.reservas;
+            }
+
+            setReservas(reservasData);
             setLoading(false);
         } catch (error) {
             console.error('Error al cargar reservas:', error);
             Swal.fire('Error', 'No se pudieron cargar tus reservas', 'error');
+            setReservas([]); // Establecer array vacío en caso de error
             setLoading(false);
         }
     };
@@ -39,7 +52,7 @@ const MisReservas = () => {
 
         if (result.isConfirmed) {
             try {
-                await axios.delete(`/cliente/reservas/${id}`);
+                await axios.delete(`/reservas/${id}`);
                 Swal.fire('¡Cancelada!', 'Tu reserva ha sido cancelada', 'success');
                 fetchReservas();
             } catch (error) {
@@ -48,10 +61,12 @@ const MisReservas = () => {
         }
     };
 
-    const reservasFiltradas = reservas.filter(reserva => {
-        if (filtro === 'todas') return true;
-        return reserva.estado === filtro;
-    });
+    const reservasFiltradas = Array.isArray(reservas)
+        ? reservas.filter(reserva => {
+            if (filtro === 'todas') return true;
+            return reserva.estado === filtro;
+        })
+        : [];
 
     const getEstadoConfig = (estado) => {
         const configs = {
@@ -159,8 +174,8 @@ const MisReservas = () => {
                 <div style={styles.emptyState}>
                     <FaBook style={styles.emptyIcon} />
                     <h3 style={styles.emptyTitle}>
-                        {filtro === 'todas' 
-                            ? 'No tienes reservas' 
+                        {filtro === 'todas'
+                            ? 'No tienes reservas'
                             : `No tienes reservas ${filtro === 'pendiente' ? 'pendientes' : filtro === 'aprobado' ? 'aprobadas' : 'en curso'}`
                         }
                     </h3>
@@ -175,8 +190,8 @@ const MisReservas = () => {
                 <div style={styles.reservasList}>
                     {reservasFiltradas.map((reserva) => {
                         const estadoConfig = getEstadoConfig(reserva.estado);
-                        const libro = reserva.libro;
-                        
+                        const libro = reserva.libro || {};
+
                         return (
                             <div key={reserva.id} style={styles.reservaCard}>
                                 {/* Header con estado */}
@@ -200,10 +215,14 @@ const MisReservas = () => {
                                 {/* Información del libro */}
                                 <div style={styles.cardBody}>
                                     <div style={styles.bookInfo}>
-                                        <h3 style={styles.bookTitle}>{libro.titulo}</h3>
+                                        <h3 style={styles.bookTitle}>{libro.titulo || 'Sin título'}</h3>
                                         <div style={styles.bookMeta}>
-                                            <span><strong>Autor:</strong> {libro.autor?.nombre}</span>
-                                            <span><strong>Categoría:</strong> {libro.categoria?.nombre}</span>
+                                            {libro.autor?.nombre && (
+                                                <span><strong>Autor:</strong> {libro.autor.nombre}</span>
+                                            )}
+                                            {libro.categoria?.nombre && (
+                                                <span><strong>Categoría:</strong> {libro.categoria.nombre}</span>
+                                            )}
                                         </div>
                                     </div>
 
@@ -231,7 +250,7 @@ const MisReservas = () => {
                                             </div>
                                         )}
 
-                                        {(reserva.estado === 'en_curso' || reserva.estado === 'devuelto' || reserva.estado === 'en_falta') && (
+                                        {(reserva.estado === 'en_curso' || reserva.estado === 'devuelto' || reserva.estado === 'en_falta') && reserva.fecha_inicio && (
                                             <>
                                                 <div style={styles.dateItem}>
                                                     <FaCalendar style={styles.dateIcon} />
@@ -242,24 +261,28 @@ const MisReservas = () => {
                                                         </div>
                                                     </div>
                                                 </div>
-                                                <div style={styles.dateItem}>
-                                                    <FaCalendar style={styles.dateIcon} />
-                                                    <div>
-                                                        <div style={styles.dateLabel}>Debe devolver</div>
-                                                        <div style={styles.dateValue}>
-                                                            {new Date(reserva.fecha_fin).toLocaleDateString()}
+                                                {reserva.fecha_fin && (
+                                                    <div style={styles.dateItem}>
+                                                        <FaCalendar style={styles.dateIcon} />
+                                                        <div>
+                                                            <div style={styles.dateLabel}>Debe devolver</div>
+                                                            <div style={styles.dateValue}>
+                                                                {new Date(reserva.fecha_fin).toLocaleDateString()}
+                                                            </div>
                                                         </div>
                                                     </div>
-                                                </div>
+                                                )}
                                             </>
                                         )}
                                     </div>
 
                                     {/* Detalles adicionales */}
                                     <div style={styles.details}>
-                                        <div style={styles.detailItem}>
-                                            <strong>Tipo:</strong> {reserva.tipo_prestamo}
-                                        </div>
+                                        {reserva.tipo_prestamo && (
+                                            <div style={styles.detailItem}>
+                                                <strong>Tipo:</strong> {reserva.tipo_prestamo}
+                                            </div>
+                                        )}
                                         {reserva.garantia && (
                                             <div style={styles.detailItem}>
                                                 <strong>Garantía:</strong> {reserva.garantia}
@@ -287,10 +310,12 @@ const MisReservas = () => {
 
                                 {/* Footer con acciones */}
                                 <div style={styles.cardFooter}>
-                                    <Link to={`/publico/libro/${libro.id}`} style={styles.btnVer}>
-                                        Ver Libro
-                                    </Link>
-                                    
+                                    {libro.id && (
+                                        <Link to={`/publico/libro/${libro.id}`} style={styles.btnVer}>
+                                            Ver Libro
+                                        </Link>
+                                    )}
+
                                     {reserva.estado === 'pendiente' && (
                                         <button
                                             onClick={() => handleCancelar(reserva.id, libro.titulo)}

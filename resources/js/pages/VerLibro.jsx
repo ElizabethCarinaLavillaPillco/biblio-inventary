@@ -16,7 +16,7 @@ const VerLibro = () => {
     const fetchLibro = async () => {
         try {
             const response = await axios.get(`/libros/${id}`);
-            setLibro(response.data);
+            setLibro(response.data.libro);
             setLoading(false);
         } catch (error) {
             Swal.fire('Error', 'No se pudo cargar el libro', 'error');
@@ -66,18 +66,40 @@ const VerLibro = () => {
                 </div>
 
                 <div style={styles.grid}>
+                    {/* INFORMACIÓN PRINCIPAL */}
                     <InfoItem label="Autor" value={libro.autor?.nombre} icon="✍️" />
                     <InfoItem label="Categoría" value={libro.categoria?.nombre} icon="🏷️" />
                     <InfoItem label="Precio" value={`S/. ${libro.precio || '0.00'}`} icon="💰" />
                     <InfoItem label="Ubicación" value={libro.ubicacion?.codigo || 'Sin ubicación'} icon="📍" />
-                    <InfoItem label="Páginas" value={libro.numero_paginas || 'N/A'} icon="📄" />
+
+                    {/* IDENTIFICADORES BIBLIOGRÁFICOS */}
+                    <InfoItem label="ISBN" value={libro.isbn || 'N/A'} icon="📖" />
+                    <InfoItem label="ISSN" value={libro.issn || 'N/A'} icon="📰" />
+                    <InfoItem label="Colección" value={libro.coleccion?.nombre || 'N/A'} icon="📚" />
+                    <InfoItem label="Clasificación CDD" value={libro.clasificacion_cdd || 'N/A'} icon="📊" />
+                    <InfoItem label="Código CDD" value={libro.codigo_cdd || 'N/A'} icon="🔢" />
+
+                    {/* INFORMACIÓN DE PUBLICACIÓN */}
                     <InfoItem label="Editorial" value={libro.editorial || 'N/A'} icon="📚" />
+                    <InfoItem label="Año Publicación" value={libro.anio_publicacion || 'N/A'} icon="📅" />
+                    <InfoItem label="Idioma" value={libro.idioma || 'N/A'} icon="🌍" />
+                    <InfoItem label="Páginas" value={libro.numero_paginas || 'N/A'} icon="📄" />
+
+                    {/* CARACTERÍSTICAS FÍSICAS */}
                     <InfoItem label="Tamaño" value={libro.tamanio || 'N/A'} icon="📐" />
                     <InfoItem label="Color Forro" value={libro.color_forro || 'N/A'} icon="🎨" />
                     <InfoItem label="Procedencia" value={libro.procedencia || 'N/A'} icon="📦" />
                     <InfoItem label="Estado Libro" value={libro.estado_libro} icon="⭐" />
+
+                    {/* INFORMACIÓN ADICIONAL */}
+                    <InfoItem label="Resumen" value={libro.resumen || 'N/A'} icon="📝" />
+                    <InfoItem label="Notas" value={libro.notas || 'N/A'} icon="📋" />
+
+                    {/* INFORMACIÓN DEL SISTEMA */}
                     <InfoItem label="Registrado por" value={libro.registrado_por?.name} icon="👤" />
                     <InfoItem label="Fecha registro" value={new Date(libro.created_at).toLocaleDateString()} icon="📅" />
+                    <InfoItem label="Código Inventario" value={libro.codigo_inventario || 'N/A'} icon="🏷️" />
+                    <InfoItem label="Destino Mal Estado" value={libro.destino_mal_estado || 'N/A'} icon="⚠️" />
                 </div>
 
                 {libro.prestamo_activo && (

@@ -5,7 +5,7 @@ import Swal from 'sweetalert2';
 import { FaBook, FaCalendar, FaShieldAlt, FaInfoCircle, FaCheckCircle, FaExclamationTriangle } from 'react-icons/fa';
 
 const FormularioReserva = ({ cliente }) => {
-    const { id } = useParams();
+    const { libroId } = useParams(); // Cambio importante: capturar 'libroId'
     const navigate = useNavigate();
     const [libro, setLibro] = useState(null);
     const [disponibilidad, setDisponibilidad] = useState(null);
@@ -21,32 +21,45 @@ const FormularioReserva = ({ cliente }) => {
     });
 
     useEffect(() => {
-        if (!cliente) {
-            navigate('/cliente/login', { state: { returnTo: `/publico/libro/${id}` } });
+        console.log('libroId capturado:', libroId);
+
+        if (!libroId) {
+            Swal.fire('Error', 'No se especificó el libro', 'error');
+            navigate('/publico');
             return;
         }
+
+        if (!cliente) {
+            Swal.fire('Error', 'Debes iniciar sesión para hacer una reserva', 'warning');
+            navigate('/login', { state: { returnTo: `/publico/libro/${libroId}` } });
+            return;
+        }
+
         fetchLibro();
-    }, [id, cliente]);
+    }, [libroId, cliente]);
 
     const fetchLibro = async () => {
         try {
-            const response = await axios.get(`/publico/libros/${id}`);
-            setLibro(response.data.libro);
+            console.log('Solicitando libro con ID:', libroId);
+            const response = await axios.get(`/publico/libros/${libroId}`);
+            console.log('Respuesta del servidor:', response.data);
+
+            setLibro(response.data.libro || response.data);
             setDisponibilidad(response.data.disponibilidad);
-            
+
             // Calcular fecha fin por defecto (7 días)
             const fechaInicio = new Date();
             const fechaFin = new Date(fechaInicio);
             fechaFin.setDate(fechaFin.getDate() + 7);
-            
+
             setFormData(prev => ({
                 ...prev,
                 fecha_fin: fechaFin.toISOString().split('T')[0]
             }));
-            
+
             setLoading(false);
         } catch (error) {
-            console.error('Error:', error);
+            console.error('Error al cargar libro:', error);
             Swal.fire('Error', 'No se pudo cargar el libro', 'error');
             navigate('/publico');
         }
@@ -68,14 +81,14 @@ const FormularioReserva = ({ cliente }) => {
         // Validar fechas
         const inicio = new Date(formData.fecha_inicio);
         const fin = new Date(formData.fecha_fin);
-        
+
         if (fin <= inicio) {
             Swal.fire('Error', 'La fecha de devolución debe ser posterior a la fecha de inicio', 'error');
             return;
         }
 
         const diasPrestamo = Math.ceil((fin - inicio) / (1000 * 60 * 60 * 24));
-        
+
         if (diasPrestamo > 30) {
             Swal.fire('Error', 'El préstamo no puede exceder 30 días', 'error');
             return;
@@ -89,10 +102,17 @@ const FormularioReserva = ({ cliente }) => {
         setSubmitting(true);
 
         try {
-            await axios.post('/cliente/reservas', {
-                libro_id: id,
+            console.log('Enviando reserva con datos:', {
+                libro_id: libroId,
                 ...formData
             });
+
+            const response = await axios.post('/reservas', {
+                libro_id: libroId,
+                ...formData
+            });
+
+            console.log('Respuesta de reserva:', response.data);
 
             Swal.fire({
                 icon: 'success',
@@ -108,6 +128,7 @@ const FormularioReserva = ({ cliente }) => {
                 navigate('/cliente/reservas');
             });
         } catch (error) {
+            console.error('Error al crear reserva:', error);
             const mensaje = error.response?.data?.message || 'No se pudo crear la reserva';
             Swal.fire('Error', mensaje, 'error');
         } finally {
@@ -144,10 +165,10 @@ const FormularioReserva = ({ cliente }) => {
                     <h2 style={styles.bookTitle}>{libro.titulo}</h2>
                     <div style={styles.bookInfo}>
                         <div style={styles.bookInfoItem}>
-                            <strong>Autor:</strong> {libro.autor?.nombre}
+                            <strong>Autor:</strong> {libro.autor?.nombre || 'Sin autor'}
                         </div>
                         <div style={styles.bookInfoItem}>
-                            <strong>Categoría:</strong> {libro.categoria?.nombre}
+                            <strong>Categoría:</strong> {libro.categoria?.nombre || 'Sin categoría'}
                         </div>
                         {libro.ubicacion && (
                             <div style={styles.bookInfoItem}>
@@ -157,36 +178,38 @@ const FormularioReserva = ({ cliente }) => {
                     </div>
 
                     {/* Estado de disponibilidad */}
-                    <div style={{
-                        ...styles.disponibilidadBanner,
-                        backgroundColor: disponibilidad?.disponible ? '#E8F5E9' : '#FFF3E0',
-                        borderColor: disponibilidad?.disponible ? '#4CAF50' : '#FF9800'
-                    }}>
-                        {disponibilidad?.disponible ? (
-                            <>
-                                <FaCheckCircle style={{ color: '#4CAF50', fontSize: '24px' }} />
-                                <div>
-                                    <div style={styles.dispTitle}>Libro Disponible</div>
-                                    <div style={styles.dispText}>Puedes reservarlo ahora</div>
-                                </div>
-                            </>
-                        ) : (
-                            <>
-                                <FaExclamationTriangle style={{ color: '#FF9800', fontSize: '24px' }} />
-                                <div>
-                                    <div style={styles.dispTitle}>Libro Prestado</div>
-                                    {disponibilidad?.fecha_estimada && (
-                                        <div style={styles.dispText}>
-                                            Disponible aprox: {new Date(disponibilidad.fecha_estimada).toLocaleDateString()}
-                                        </div>
-                                    )}
-                                    <div style={styles.dispText}>
-                                        Tu reserva será para una fecha posterior
+                    {disponibilidad && (
+                        <div style={{
+                            ...styles.disponibilidadBanner,
+                            backgroundColor: disponibilidad.disponible ? '#E8F5E9' : '#FFF3E0',
+                            borderColor: disponibilidad.disponible ? '#4CAF50' : '#FF9800'
+                        }}>
+                            {disponibilidad.disponible ? (
+                                <>
+                                    <FaCheckCircle style={{ color: '#4CAF50', fontSize: '24px' }} />
+                                    <div>
+                                        <div style={styles.dispTitle}>Libro Disponible</div>
+                                        <div style={styles.dispText}>Puedes reservarlo ahora</div>
                                     </div>
-                                </div>
-                            </>
-                        )}
-                    </div>
+                                </>
+                            ) : (
+                                <>
+                                    <FaExclamationTriangle style={{ color: '#FF9800', fontSize: '24px' }} />
+                                    <div>
+                                        <div style={styles.dispTitle}>Libro Prestado</div>
+                                        {disponibilidad.fecha_estimada && (
+                                            <div style={styles.dispText}>
+                                                Disponible aprox: {new Date(disponibilidad.fecha_estimada).toLocaleDateString()}
+                                            </div>
+                                        )}
+                                        <div style={styles.dispText}>
+                                            Tu reserva será para una fecha posterior
+                                        </div>
+                                    </div>
+                                </>
+                            )}
+                        </div>
+                    )}
                 </div>
 
                 {/* Formulario de reserva */}
@@ -226,7 +249,7 @@ const FormularioReserva = ({ cliente }) => {
                                     <div style={styles.radioDesc}>Leerás el libro dentro de la biblioteca</div>
                                 </div>
                             </label>
-                            
+
                             <label style={styles.radioLabel}>
                                 <input
                                     type="radio"
@@ -249,7 +272,7 @@ const FormularioReserva = ({ cliente }) => {
                         <h3 style={styles.sectionTitle}>
                             <FaCalendar /> Fechas del Préstamo
                         </h3>
-                        
+
                         <div style={styles.grid}>
                             <div style={styles.inputGroup}>
                                 <label style={styles.label}>Fecha de Inicio *</label>
@@ -319,9 +342,9 @@ const FormularioReserva = ({ cliente }) => {
                                 style={styles.checkbox}
                             />
                             <span>
-                                Acepto el <strong>tratamiento de mis datos personales</strong> conforme 
-                                a la Ley N° 29733 (Protección de Datos Personales) para fines de gestión 
-                                bibliotecaria. Mis datos serán utilizados únicamente para procesar esta 
+                                Acepto el <strong>tratamiento de mis datos personales</strong> conforme
+                                a la Ley N° 29733 (Protección de Datos Personales) para fines de gestión
+                                bibliotecaria. Mis datos serán utilizados únicamente para procesar esta
                                 reserva y comunicarme sobre el estado del préstamo.
                             </span>
                         </label>

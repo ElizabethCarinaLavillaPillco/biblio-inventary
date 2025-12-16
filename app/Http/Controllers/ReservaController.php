@@ -16,7 +16,7 @@ class ReservaController extends Controller
     public function crearReserva(Request $request)
     {
         $clienteId = Session::get('cliente_id');
-        
+
         if (!$clienteId) {
             return response()->json(['message' => 'Debe iniciar sesión para hacer una reserva'], 401);
         }
@@ -40,7 +40,7 @@ class ReservaController extends Controller
 
         // Verificar si el cliente puede reservar
         $puedeReservar = $cliente->puedeReservarLibro($request->libro_id);
-        
+
         if (!$puedeReservar['puede']) {
             return response()->json([
                 'message' => $puedeReservar['mensaje']
@@ -50,7 +50,7 @@ class ReservaController extends Controller
         // Verificar disponibilidad del libro
         if (!$libro->estaDisponible()) {
             $fechaEstimada = $libro->getFechaDisponibilidadEstimada();
-            
+
             // Verificar si la fecha solicitada es después de la fecha estimada de disponibilidad
             if ($fechaEstimada && Carbon::parse($request->fecha_inicio)->lessThan($fechaEstimada)) {
                 return response()->json([
@@ -107,23 +107,31 @@ class ReservaController extends Controller
     public function misReservas()
     {
         $clienteId = Session::get('cliente_id');
-        
+
         if (!$clienteId) {
             return response()->json(['message' => 'No autenticado'], 401);
         }
 
-        $reservas = Prestamo::with(['libro.autor', 'prestadoPor', 'recibidoPor'])
-            ->where('cliente_id', $clienteId)
-            ->orderBy('created_at', 'desc')
-            ->paginate(20);
+        try {
+            $reservas = Prestamo::with(['libro.autor', 'libro.categoria', 'prestadoPor', 'recibidoPor'])
+                ->where('cliente_id', $clienteId)
+                ->orderBy('created_at', 'desc')
+                ->get(); // Cambio: quitamos paginate() por get()
 
-        return response()->json($reservas);
+            return response()->json($reservas);
+        } catch (\Exception $e) {
+            \Log::error('Error en misReservas: ' . $e->getMessage());
+            return response()->json([
+                'message' => 'Error al cargar reservas',
+                'error' => $e->getMessage()
+            ], 500);
+        }
     }
 
     public function detalleReserva($id)
     {
         $clienteId = Session::get('cliente_id');
-        
+
         if (!$clienteId) {
             return response()->json(['message' => 'No autenticado'], 401);
         }
@@ -144,7 +152,7 @@ class ReservaController extends Controller
     public function cancelarReserva($id)
     {
         $clienteId = Session::get('cliente_id');
-        
+
         if (!$clienteId) {
             return response()->json(['message' => 'No autenticado'], 401);
         }
@@ -291,7 +299,7 @@ class ReservaController extends Controller
 
         // Calcular días de retraso
         $diasRetraso = now()->diffInDays($reserva->fecha_fin, false);
-        
+
         if ($diasRetraso < 0) {
             $diasRetraso = abs($diasRetraso);
         } else {

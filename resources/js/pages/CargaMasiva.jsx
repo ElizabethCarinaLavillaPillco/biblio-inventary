@@ -1,5 +1,3 @@
-// resources/js/pages/CargaMasiva.jsx
-
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import axios from 'axios';
@@ -99,7 +97,6 @@ const CargaMasiva = () => {
                 html: `
                     <div style="text-align: left;">
                         <p><strong>✅ Registrados:</strong> ${response.data.resumen.registrados}</p>
-                        <p><strong>⚠️ Duplicados:</strong> ${response.data.resumen.duplicados}</p>
                         <p><strong>❌ Sin datos:</strong> ${response.data.resumen.sin_datos}</p>
                         <p><strong>🚫 Errores:</strong> ${response.data.resumen.errores}</p>
                     </div>
@@ -130,7 +127,6 @@ const CargaMasiva = () => {
         }
     };
 
-    // NUEVA FUNCIÓN: Descargar plantilla
     const descargarPlantilla = async () => {
         try {
           const res = await axios.get('/plantilla/descargar', { responseType: 'blob' });
@@ -138,14 +134,14 @@ const CargaMasiva = () => {
           const url  = window.URL.createObjectURL(blob);
           const a    = document.createElement('a');
           a.href     = url;
-          a.download = 'plantilla_carga_libros.xlsx';   // <-- .xlsx real
+          a.download = 'plantilla_carga_libros_completa.xlsx';
           a.click();
           window.URL.revokeObjectURL(url);
-          Swal.fire({ icon:'success', title:'Plantilla descargada' });
+          Swal.fire({ icon:'success', title:'Plantilla descargada', timer: 1500, showConfirmButton: false });
         } catch (e) {
           Swal.fire({ icon:'error', title:'No se pudo descargar la plantilla' });
         }
-      };
+    };
 
     return (
         <div style={styles.container}>
@@ -156,7 +152,7 @@ const CargaMasiva = () => {
                     style={styles.btnDownload}
                     type="button"
                 >
-                    📥 Descargar Plantilla Excel
+                    📥 Descargar Plantilla Excel Completa
                 </button>
             </div>
 
@@ -164,15 +160,79 @@ const CargaMasiva = () => {
                 <div style={styles.instructions}>
                     <h3>📋 Instrucciones</h3>
                     <ul style={styles.instructionsList}>
-                        <li>Descarga la plantilla Excel usando el botón de arriba</li>
-                        <li>El archivo Excel debe contener las columnas: <strong>Título, Autor, ISBN, Categoría, Precio, Editorial, Año</strong></li>
-                        <li>Los campos <strong>Título y Autor son obligatorios</strong>, el resto es opcional</li>
-                        <li>El sistema detectará automáticamente libros duplicados</li>
-                        <li>Los autores nuevos se crearán automáticamente</li>
+                        <li><strong>Descarga la plantilla Excel</strong> usando el botón verde de arriba</li>
+                        <li>La plantilla incluye <strong>21 columnas con TODOS los campos</strong> del libro</li>
+                        <li>Solo 3 campos son <strong>OBLIGATORIOS</strong>: Título, Autor y Categoría</li>
+                        <li>El resto de campos son <strong>opcionales</strong> (puedes dejarlos vacíos)</li>
+                        <li>La plantilla incluye <strong>5 ejemplos</strong> de libros con diferentes niveles de detalle</li>
+                        <li>El sistema <strong>creará automáticamente</strong>:
+                            <ul style={{marginLeft: '20px', marginTop: '5px'}}>
+                                <li>Autores nuevos que no existan</li>
+                                <li>Categorías nuevas que no existan</li>
+                                <li>Colecciones nuevas que no existan</li>
+                                <li>Códigos de inventario únicos</li>
+                            </ul>
+                        </li>
+                        <li><strong>NO subir la primera fila</strong> con los encabezados (Título, Autor, etc.)</li>
                         <li>Tamaño máximo del archivo: <strong>5MB</strong></li>
-                        <li>Después puedes editar cada libro para completar detalles adicionales</li>
-                        <li>Sol subir registros de libros, <strong>NO SUBIR LA PRIMERA FILA (Titulo, Autor, etc)</strong></li>
                     </ul>
+                </div>
+
+                <div style={styles.fieldsInfo}>
+                    <h4 style={{marginBottom: '10px'}}>📝 Campos disponibles en la plantilla:</h4>
+                    <div style={styles.fieldsGrid}>
+                        <div style={styles.fieldCategory}>
+                            <strong>✅ Obligatorios (3):</strong>
+                            <ul style={{marginLeft: '15px', fontSize: '13px'}}>
+                                <li>Título</li>
+                                <li>Autor</li>
+                                <li>Categoría</li>
+                            </ul>
+                        </div>
+                        <div style={styles.fieldCategory}>
+                            <strong>🏷️ Identificadores (4):</strong>
+                            <ul style={{marginLeft: '15px', fontSize: '13px'}}>
+                                <li>Tipo Item</li>
+                                <li>ISBN</li>
+                                <li>ISSN</li>
+                                <li>Colección</li>
+                            </ul>
+                        </div>
+                        <div style={styles.fieldCategory}>
+                            <strong>📊 Clasificación (3):</strong>
+                            <ul style={{marginLeft: '15px', fontSize: '13px'}}>
+                                <li>Clasificación CDD</li>
+                                <li>Código CDD</li>
+                                <li>Signatura</li>
+                            </ul>
+                        </div>
+                        <div style={styles.fieldCategory}>
+                            <strong>📚 Publicación (3):</strong>
+                            <ul style={{marginLeft: '15px', fontSize: '13px'}}>
+                                <li>Editorial</li>
+                                <li>Año Publicación</li>
+                                <li>Idioma</li>
+                            </ul>
+                        </div>
+                        <div style={styles.fieldCategory}>
+                            <strong>📐 Físico (4):</strong>
+                            <ul style={{marginLeft: '15px', fontSize: '13px'}}>
+                                <li>Precio</li>
+                                <li>Número Páginas</li>
+                                <li>Tamaño</li>
+                                <li>Color Forro</li>
+                            </ul>
+                        </div>
+                        <div style={styles.fieldCategory}>
+                            <strong>📝 Otros (4):</strong>
+                            <ul style={{marginLeft: '15px', fontSize: '13px'}}>
+                                <li>Resumen</li>
+                                <li>Notas</li>
+                                <li>Procedencia</li>
+                                <li>Estado Libro</li>
+                            </ul>
+                        </div>
+                    </div>
                 </div>
 
                 <form onSubmit={handleSubmit} style={styles.form}>
@@ -237,10 +297,6 @@ const CargaMasiva = () => {
                                 <div style={styles.summaryValue}>{resultado.resumen.registrados}</div>
                                 <div style={styles.summaryLabel}>Registrados</div>
                             </div>
-                            <div style={{...styles.summaryItem, backgroundColor: '#FF9800'}}>
-                                <div style={styles.summaryValue}>{resultado.resumen.duplicados}</div>
-                                <div style={styles.summaryLabel}>Duplicados</div>
-                            </div>
                             <div style={{...styles.summaryItem, backgroundColor: '#F44336'}}>
                                 <div style={styles.summaryValue}>{resultado.resumen.sin_datos}</div>
                                 <div style={styles.summaryLabel}>Sin Datos</div>
@@ -257,7 +313,7 @@ const CargaMasiva = () => {
                                 <div style={{ maxHeight: '200px', overflowY: 'auto' }}>
                                     {resultado.registrados.slice(0, 10).map((reg, i) => (
                                         <div key={i} style={styles.detalle}>
-                                            Fila {reg.fila}: {reg.titulo}
+                                            Fila {reg.fila}: {reg.titulo} ({reg.codigo_inventario})
                                             <Link to={`/libros/ver/${reg.libro_id}`} style={styles.link}>
                                                 Ver →
                                             </Link>
@@ -272,22 +328,6 @@ const CargaMasiva = () => {
                             </div>
                         )}
 
-                        {resultado.duplicados && resultado.duplicados.length > 0 && (
-                            <div style={styles.detalles}>
-                                <h4>⚠️ Libros Duplicados ({resultado.duplicados.length})</h4>
-                                <div style={{ maxHeight: '200px', overflowY: 'auto' }}>
-                                    {resultado.duplicados.map((dup, i) => (
-                                        <div key={i} style={styles.detalle}>
-                                            Fila {dup.fila}: {dup.titulo} - {dup.autor}
-                                            <Link to={`/libros/ver/${dup.libro_id}`} style={styles.link}>
-                                                Ver existente →
-                                            </Link>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-                        )}
-
                         {resultado.sin_datos && resultado.sin_datos.length > 0 && (
                             <div style={styles.detalles}>
                                 <h4>❌ Filas Sin Datos Completos ({resultado.sin_datos.length})</h4>
@@ -295,6 +335,9 @@ const CargaMasiva = () => {
                                     {resultado.sin_datos.map((sd, i) => (
                                         <div key={i} style={styles.detalle}>
                                             Fila {sd.fila}: {sd.titulo || 'Sin título'} - {sd.autor || 'Sin autor'}
+                                            <div style={{fontSize: '12px', color: '#666', marginTop: '3px'}}>
+                                                {sd.error}
+                                            </div>
                                         </div>
                                     ))}
                                 </div>
@@ -304,11 +347,11 @@ const CargaMasiva = () => {
                         {resultado.errores && resultado.errores.length > 0 && (
                             <div style={styles.detalles}>
                                 <h4>🚫 Errores al Procesar ({resultado.errores.length})</h4>
-                                <div style={{ maxHeight: '200px', overflowY: 'auto' }}>
+                                <div style={{ maxHeight: '300px', overflowY: 'auto' }}>
                                     {resultado.errores.map((err, i) => (
                                         <div key={i} style={styles.detalle}>
-                                            Fila {err.fila}: {err.titulo}
-                                            <div style={{ fontSize: '12px', color: '#F44336' }}>
+                                            <div>Fila {err.fila}: {err.titulo}</div>
+                                            <div style={{ fontSize: '12px', color: '#F44336', marginTop: '5px' }}>
                                                 {err.error}
                                             </div>
                                         </div>
@@ -342,11 +385,11 @@ const CargaMasiva = () => {
 };
 
 const styles = {
-    container: { padding: '20px', maxWidth: '900px', margin: '0 auto' },
+    container: { padding: '20px', maxWidth: '1000px', margin: '0 auto' },
     header: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '30px', flexWrap: 'wrap', gap: '15px' },
     title: { fontSize: '32px', margin: 0 },
     btnDownload: {
-        padding: '12px 24px',
+        padding: '14px 28px',
         backgroundColor: '#4CAF50',
         color: '#fff',
         border: 'none',
@@ -354,7 +397,8 @@ const styles = {
         cursor: 'pointer',
         fontWeight: '600',
         fontSize: '16px',
-        transition: 'all 0.3s'
+        transition: 'all 0.3s',
+        boxShadow: '0 2px 8px rgba(76, 175, 80, 0.3)'
     },
     card: {
         backgroundColor: '#fff',
@@ -366,12 +410,30 @@ const styles = {
         backgroundColor: '#e3f2fd',
         padding: '20px',
         borderRadius: '8px',
-        marginBottom: '30px',
+        marginBottom: '20px',
         borderLeft: '4px solid #2196F3'
     },
     instructionsList: {
         margin: '10px 0',
-        paddingLeft: '20px'
+        paddingLeft: '20px',
+        lineHeight: '1.8'
+    },
+    fieldsInfo: {
+        backgroundColor: '#f5f5f5',
+        padding: '20px',
+        borderRadius: '8px',
+        marginBottom: '30px',
+        border: '2px solid #e0e0e0'
+    },
+    fieldsGrid: {
+        display: 'grid',
+        gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+        gap: '15px',
+        marginTop: '10px'
+    },
+    fieldCategory: {
+        fontSize: '14px',
+        lineHeight: '1.6'
     },
     form: { display: 'flex', flexDirection: 'column', gap: '20px' },
     fileInput: { display: 'flex', justifyContent: 'center' },
@@ -422,7 +484,7 @@ const styles = {
     },
     summary: {
         display: 'grid',
-        gridTemplateColumns: 'repeat(4, 1fr)',
+        gridTemplateColumns: 'repeat(3, 1fr)',
         gap: '15px',
         marginBottom: '20px'
     },

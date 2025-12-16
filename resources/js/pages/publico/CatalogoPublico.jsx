@@ -1,20 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import axios from 'axios';
-import { FaSearch, FaFilter, FaBook, FaCheckCircle, FaTimesCircle } from 'react-icons/fa';
+import { FaSearch, FaFilter, FaBook, FaCheckCircle, FaTimesCircle, FaBookReader, FaClock, FaMapMarkerAlt, FaPhone } from 'react-icons/fa';
 
 const CatalogoPublico = () => {
     const [libros, setLibros] = useState([]);
     const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState('');
-    const [pagination, setPagination] = useState({});
 
     // Filtros
     const [categorias, setCategorias] = useState([]);
     const [clasificacionesCdd, setClasificacionesCdd] = useState([]);
     const [autores, setAutores] = useState([]);
     const [colecciones, setColecciones] = useState([]);
-    
+
     const [filtros, setFiltros] = useState({
         categoria_id: '',
         clasificacion_cdd: '',
@@ -33,15 +32,15 @@ const CatalogoPublico = () => {
         fetchEstadisticas();
     }, [search, filtros]);
 
-    const fetchLibros = async (page = 1) => {
+    const fetchLibros = async () => {
         try {
             setLoading(true);
             const params = {
                 search,
                 ...filtros,
-                page,
+                limit: 6, // Solo 6 libros más recientes
             };
-            
+
             Object.keys(params).forEach(key => {
                 if (params[key] === '' || params[key] === null) {
                     delete params[key];
@@ -50,7 +49,6 @@ const CatalogoPublico = () => {
 
             const response = await axios.get('/publico/libros', { params });
             setLibros(response.data.data || []);
-            setPagination(response.data);
             setLoading(false);
         } catch (error) {
             console.error('Error al cargar libros:', error);
@@ -101,14 +99,23 @@ const CatalogoPublico = () => {
         setSearch('');
     };
 
+    // ===== FRASES MOTIVACIONALES SOBRE LECTURA =====
+    const frases = [
+        { texto: "La lectura es para la mente lo que el ejercicio es para el cuerpo", autor: "Joseph Addison" },
+        { texto: "Un libro abierto es un cerebro que habla; cerrado, un amigo que espera; olvidado, un alma que perdona; destruido, un corazón que llora", autor: "Proverbio hindú" },
+        { texto: "Leer es como pensar, como rezar, como hablar con un amigo, como exponer tus ideas, como escuchar las ideas de otros, como escuchar música, como contemplar un paisaje, como salir a dar un paseo por la playa", autor: "Roberto Bolaño" },
+    ];
+
+    const fraseAleatoria = frases[Math.floor(Math.random() * frases.length)];
+
     return (
         <div style={styles.container}>
             {/* Hero Section */}
             <div style={styles.hero}>
                 <div style={styles.heroContent}>
-                    <h1 style={styles.heroTitle}>Catálogo de Biblioteca</h1>
+                    <h1 style={styles.heroTitle}>Catálogo de Biblioteca Municipal</h1>
                     <p style={styles.heroSubtitle}>Explora nuestra colección de más de {estadisticas.total_libros || 0} libros</p>
-                    
+
                     {/* Barra de búsqueda principal */}
                     <div style={styles.searchBar}>
                         <FaSearch style={styles.searchIcon} />
@@ -257,14 +264,14 @@ const CatalogoPublico = () => {
                 {/* Lista de libros */}
                 <div style={styles.content}>
                     <div style={styles.contentHeader}>
-                        <button 
+                        <button
                             onClick={() => setMostrarFiltros(!mostrarFiltros)}
                             style={styles.toggleFiltersBtn}
                         >
                             <FaFilter /> {mostrarFiltros ? 'Ocultar' : 'Mostrar'} Filtros
                         </button>
                         <div style={styles.resultCount}>
-                            {pagination.total || 0} libros encontrados
+                            📚 Últimos Libros Registrados
                         </div>
                     </div>
 
@@ -282,8 +289,8 @@ const CatalogoPublico = () => {
                         <>
                             <div style={styles.grid}>
                                 {libros.map((libro) => (
-                                    <Link 
-                                        key={libro.id} 
+                                    <Link
+                                        key={libro.id}
                                         to={`/publico/libro/${libro.id}`}
                                         style={styles.card}
                                     >
@@ -306,7 +313,7 @@ const CatalogoPublico = () => {
                                         </div>
 
                                         <h3 style={styles.cardTitle}>{libro.titulo}</h3>
-                                        
+
                                         <div style={styles.cardMeta}>
                                             <div style={styles.metaItem}>
                                                 <strong>Autor:</strong> {libro.autor?.nombre || 'Desconocido'}
@@ -333,37 +340,130 @@ const CatalogoPublico = () => {
                                     </Link>
                                 ))}
                             </div>
-
-                            {/* Paginación */}
-                            {pagination.last_page > 1 && (
-                                <div style={styles.pagination}>
-                                    <button
-                                        onClick={() => fetchLibros(pagination.current_page - 1)}
-                                        disabled={pagination.current_page === 1}
-                                        style={{
-                                            ...styles.pageBtn,
-                                            opacity: pagination.current_page === 1 ? 0.5 : 1
-                                        }}
-                                    >
-                                        ← Anterior
-                                    </button>
-                                    <span style={styles.pageInfo}>
-                                        Página {pagination.current_page} de {pagination.last_page}
-                                    </span>
-                                    <button
-                                        onClick={() => fetchLibros(pagination.current_page + 1)}
-                                        disabled={pagination.current_page === pagination.last_page}
-                                        style={{
-                                            ...styles.pageBtn,
-                                            opacity: pagination.current_page === pagination.last_page ? 0.5 : 1
-                                        }}
-                                    >
-                                        Siguiente →
-                                    </button>
-                                </div>
-                            )}
                         </>
                     )}
+
+                    {/* ===== SECCIÓN DE FRASE MOTIVACIONAL ===== */}
+                    <div style={styles.fraseSection}>
+                        <FaBookReader style={styles.fraseIcon} />
+                        <blockquote style={styles.fraseTexto}>
+                            "{fraseAleatoria.texto}"
+                        </blockquote>
+                        <cite style={styles.fraseAutor}>— {fraseAleatoria.autor}</cite>
+                    </div>
+
+                    {/* ===== SECCIÓN INFORMATIVA DE LA BIBLIOTECA ===== */}
+                    <div style={styles.infoSection}>
+                        <h2 style={styles.infoTitle}>📚 Sobre Nuestra Biblioteca</h2>
+
+                        <div style={styles.infoGrid}>
+                            {/* Card 1: Servicios */}
+                            <div style={styles.infoCard}>
+                                <div style={styles.infoCardIcon}>
+                                    <FaBook size={32} color="#3484A5" />
+                                </div>
+                                <h3 style={styles.infoCardTitle}>Servicios Disponibles</h3>
+                                <ul style={styles.infoCardList}>
+                                    <li>✓ Préstamo de libros a domicilio</li>
+                                    <li>✓ Lectura en sala</li>
+                                    <li>✓ Consulta de catálogo en línea</li>
+                                    <li>✓ Reserva de libros</li>
+                                    <li>✓ Material de referencia</li>
+                                </ul>
+                            </div>
+
+                            {/* Card 2: Horarios */}
+                            <div style={styles.infoCard}>
+                                <div style={styles.infoCardIcon}>
+                                    <FaClock size={32} color="#2CA792" />
+                                </div>
+                                <h3 style={styles.infoCardTitle}>Horarios de Atención</h3>
+                                <div style={styles.infoCardContent}>
+                                    <p><strong>Lunes a Viernes:</strong></p>
+                                    <p>8:00 AM - 6:00 PM</p>
+                                    <p style={{marginTop: '10px'}}><strong>Sábados:</strong></p>
+                                    <p>9:00 AM - 1:00 PM</p>
+                                    <p style={{marginTop: '10px', fontSize: '14px', color: '#F44336'}}>
+                                        <strong>Domingos y feriados:</strong> Cerrado
+                                    </p>
+                                </div>
+                            </div>
+
+                            {/* Card 3: Ubicación */}
+                            <div style={styles.infoCard}>
+                                <div style={styles.infoCardIcon}>
+                                    <FaMapMarkerAlt size={32} color="#F0C84F" />
+                                </div>
+                                <h3 style={styles.infoCardTitle}>Ubicación y Contacto</h3>
+                                <div style={styles.infoCardContent}>
+                                    <p><FaMapMarkerAlt style={{marginRight: '8px'}} />
+                                        <strong>Dirección:</strong><br/>
+                                        <span style={{marginLeft: '24px'}}>
+                                            Plaza de Armas, Centro Histórico<br/>
+                                            Cusco, Perú
+                                        </span>
+                                    </p>
+                                    <p style={{marginTop: '15px'}}>
+                                        <FaPhone style={{marginRight: '8px'}} />
+                                        <strong>Teléfono:</strong><br/>
+                                        <span style={{marginLeft: '24px'}}>
+                                            (084) 123-4567
+                                        </span>
+                                    </p>
+                                </div>
+                            </div>
+
+                            {/* Card 4: Requisitos */}
+                            <div style={styles.infoCard}>
+                                <div style={styles.infoCardIcon}>
+                                    <FaCheckCircle size={32} color="#4CAF50" />
+                                </div>
+                                <h3 style={styles.infoCardTitle}>Requisitos para Préstamo</h3>
+                                <div style={styles.infoCardContent}>
+                                    <p><strong>Para préstamo a domicilio:</strong></p>
+                                    <ul style={styles.infoCardList}>
+                                        <li>✓ DNI o documento de identidad</li>
+                                        <li>✓ Comprobante de domicilio</li>
+                                        <li>✓ Número de teléfono</li>
+                                        <li>✓ Garantía (DNI o carnet)</li>
+                                    </ul>
+                                    <p style={{marginTop: '10px', fontSize: '13px', color: '#666'}}>
+                                        <strong>Nota:</strong> Préstamos de hasta 15 días renovables
+                                    </p>
+                                </div>
+                            </div>
+
+                            {/* Card 5: Colecciones Especiales */}
+                            <div style={styles.infoCard}>
+                                <div style={styles.infoCardIcon}>
+                                    <FaBook size={32} color="#9C27B0" />
+                                </div>
+                                <h3 style={styles.infoCardTitle}>Colecciones Destacadas</h3>
+                                <ul style={styles.infoCardList}>
+                                    <li>📖 Literatura peruana y cusqueña</li>
+                                    <li>📚 Historia del Cusco e Incas</li>
+                                    <li>🎓 Material educativo escolar</li>
+                                    <li>🌍 Literatura universal clásica</li>
+                                    <li>👶 Literatura infantil y juvenil</li>
+                                </ul>
+                            </div>
+
+                            {/* Card 6: Normas */}
+                            <div style={styles.infoCard}>
+                                <div style={styles.infoCardIcon}>
+                                    <FaBookReader size={32} color="#FF9800" />
+                                </div>
+                                <h3 style={styles.infoCardTitle}>Normas de la Biblioteca</h3>
+                                <ul style={styles.infoCardList}>
+                                    <li>• Silencio y respeto en salas de lectura</li>
+                                    <li>• No ingresar con alimentos ni bebidas</li>
+                                    <li>• Cuidar el material bibliográfico</li>
+                                    <li>• Devolver los libros en la fecha indicada</li>
+                                    <li>• Reportar cualquier daño o extravío</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -371,12 +471,12 @@ const CatalogoPublico = () => {
 };
 
 const styles = {
-    container: { 
-        minHeight: '100vh', 
-        backgroundColor: '#f8f9fa' 
+    container: {
+        minHeight: '100vh',
+        backgroundColor: '#f8f9fa'
     },
     hero: {
-        background: 'linear-gradient(135deg, #3484A5 0%, #2CA792 100%)', // Gradiente con la paleta
+        background: 'linear-gradient(135deg, #3484A5 0%, #2CA792 100%)',
         color: '#fff',
         padding: '60px 20px',
         textAlign: 'center',
@@ -402,7 +502,7 @@ const styles = {
         padding: '18px 20px 18px 55px',
         fontSize: '18px',
         border: 'none',
-        borderRadius: '50px', // Bordes redondeados
+        borderRadius: '50px',
         boxShadow: '0 4px 15px rgba(0,0,0,0.1)',
         outline: 'none',
         transition: 'box-shadow 0.3s ease',
@@ -446,7 +546,7 @@ const styles = {
         borderRadius: '12px',
         padding: '20px',
         height: 'fit-content',
-        boxShadow: '0 4px 12px rgba(0,0,0,0.08)', // Sombra suave
+        boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
         position: 'sticky',
         top: '20px',
     },
@@ -495,9 +595,9 @@ const styles = {
         marginBottom: '20px',
     },
     toggleFiltersBtn: {
-        display: 'none', // Se mostrará en responsive
+        display: 'none',
         padding: '10px 20px',
-        backgroundColor: '#3484A5', // Color primario
+        backgroundColor: '#3484A5',
         color: '#fff',
         border: 'none',
         borderRadius: '8px',
@@ -506,7 +606,7 @@ const styles = {
         fontWeight: '600',
         gap: '8px',
     },
-    resultCount: { fontSize: '16px', color: '#666', fontWeight: '600' },
+    resultCount: { fontSize: '20px', color: '#333', fontWeight: '700' },
     loading: { textAlign: 'center', padding: '50px', fontSize: '18px', color: '#666' },
     emptyState: {
         textAlign: 'center',
@@ -517,7 +617,7 @@ const styles = {
     emptyIcon: { fontSize: '64px', color: '#ccc', marginBottom: '20px' },
     btnPrimary: {
         padding: '12px 24px',
-        backgroundColor: '#2CA792', // Color secundario
+        backgroundColor: '#2CA792',
         color: '#fff',
         border: 'none',
         borderRadius: '8px',
@@ -530,15 +630,16 @@ const styles = {
         display: 'grid',
         gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))',
         gap: '20px',
+        marginBottom: '40px',
     },
     card: {
         backgroundColor: '#fff',
         borderRadius: '12px',
         padding: '20px',
-        boxShadow: '0 4px 12px rgba(0,0,0,0.08)', // Sombra suave
+        boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
         textDecoration: 'none',
         color: 'inherit',
-        transition: 'all 0.3s ease', // Transición suave
+        transition: 'all 0.3s ease',
         cursor: 'pointer',
         border: '2px solid transparent',
         display: 'flex',
@@ -564,7 +665,7 @@ const styles = {
     tipoBadge: {
         padding: '6px 12px',
         backgroundColor: '#E3F2FD',
-        color: '#3484A5', // Color primario
+        color: '#3484A5',
         borderRadius: '20px',
         fontSize: '12px',
         fontWeight: '600',
@@ -582,7 +683,7 @@ const styles = {
         flexDirection: 'column',
         gap: '8px',
         marginBottom: '15px',
-        flexGrow: 1, // Para que el footer se pegue abajo
+        flexGrow: 1,
     },
     metaItem: {
         fontSize: '14px',
@@ -591,31 +692,93 @@ const styles = {
     cardFooter: {
         paddingTop: '15px',
         borderTop: '1px solid #e0e0e0',
-        marginTop: 'auto', // Empuja el footer hacia abajo
+        marginTop: 'auto',
     },
     verMas: {
-        color: '#3484A5', // Color primario
+        color: '#3484A5',
         fontSize: '14px',
         fontWeight: '600',
     },
-    pagination: {
-        display: 'flex',
-        justifyContent: 'center',
-        alignItems: 'center',
-        gap: '20px',
+
+    // ===== ESTILOS DE FRASE MOTIVACIONAL =====
+    fraseSection: {
+        backgroundColor: '#fff',
+        borderRadius: '12px',
+        padding: '40px',
+        marginTop: '40px',
+        marginBottom: '40px',
+        boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
+        textAlign: 'center',
+        borderLeft: '5px solid #2CA792',
+    },
+    fraseIcon: {
+        fontSize: '48px',
+        color: '#2CA792',
+        marginBottom: '20px',
+    },
+    fraseTexto: {
+        fontSize: '24px',
+        fontStyle: 'italic',
+        color: '#333',
+        lineHeight: '1.6',
+        marginBottom: '15px',
+        fontWeight: '300',
+    },
+    fraseAutor: {
+        fontSize: '16px',
+        color: '#666',
+        fontStyle: 'normal',
+        fontWeight: '600',
+    },
+
+    // ===== ESTILOS DE SECCIÓN INFORMATIVA =====
+    infoSection: {
         marginTop: '40px',
     },
-    pageBtn: {
-        padding: '12px 24px',
-        backgroundColor: '#3484A5', // Color primario
-        color: '#fff',
-        border: 'none',
-        borderRadius: '8px',
-        cursor: 'pointer',
-        fontSize: '14px',
-        fontWeight: '600',
+    infoTitle: {
+        fontSize: '32px',
+        fontWeight: 'bold',
+        color: '#333',
+        marginBottom: '30px',
+        textAlign: 'center',
     },
-    pageInfo: { fontSize: '16px', color: '#666', fontWeight: '600' },
+    infoGrid: {
+        display: 'grid',
+        gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
+        gap: '25px',
+    },
+    infoCard: {
+        backgroundColor: '#fff',
+        borderRadius: '12px',
+        padding: '25px',
+        boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
+        transition: 'transform 0.3s ease, box-shadow 0.3s ease',
+        cursor: 'default',
+    },
+    infoCardIcon: {
+        marginBottom: '15px',
+    },
+    infoCardTitle: {
+        fontSize: '20px',
+        fontWeight: '700',
+        color: '#333',
+        marginBottom: '15px',
+        paddingBottom: '10px',
+        borderBottom: '2px solid #e0e0e0',
+    },
+    infoCardContent: {
+        fontSize: '15px',
+        color: '#555',
+        lineHeight: '1.6',
+    },
+    infoCardList: {
+        listStyle: 'none',
+        padding: 0,
+        margin: 0,
+        fontSize: '15px',
+        color: '#555',
+        lineHeight: '2',
+    },
 };
 
 // Media query para responsive

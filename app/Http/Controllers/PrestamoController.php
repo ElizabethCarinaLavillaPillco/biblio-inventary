@@ -4,7 +4,6 @@ namespace App\Http\Controllers;
 
 use App\Models\Prestamo;
 use App\Models\Libro;
-use App\Models\Cliente;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\DB;
@@ -13,9 +12,8 @@ class PrestamoController extends Controller
 {
     public function index(Request $request)
     {
-        $query = Prestamo::with(['libro.autor', 'libro.categoria', 'prestadoPor', 'recibidoPor', 'cliente']);
+        $query = Prestamo::with(['libro.autor', 'libro.categoria', 'prestadoPor', 'recibidoPor']);
 
-        // Filtros por estado
         if ($request->has('estado')) {
             $query->where('estado', $request->estado);
         }
@@ -24,9 +22,8 @@ class PrestamoController extends Controller
             $query->where('tipo_prestamo', $request->tipo_prestamo);
         }
 
-        // Por defecto mostrar activos y pendientes
         if (!$request->has('todos')) {
-            $query->whereIn('estado', ['pendiente', 'activo']); // SOLO ESTOS DOS
+            $query->where('estado', 'activo');
         }
 
         $prestamos = $query->latest()->paginate(20);
@@ -34,24 +31,59 @@ class PrestamoController extends Controller
         return response()->json($prestamos);
     }
 
-    // ⚡ Endpoint de estadísticas
+    // NUEVO: Estadísticas de préstamos
     public function estadisticas()
     {
-        $activos = Prestamo::where('estado', 'activo')->count();
+        try {
+            $stats = [
+                'prestamos_activos' => Prestamo::where('estado', 'activo')->count(),
+                'prestamos_vencidos' => Prestamo::where('estado', 'activo')
+                    ->where('fecha_fin', '<', now())
+                    ->count(),
+                'prestamos_hoy' => Prestamo::whereDate('fecha_inicio', today())->count(),
+                'devoluciones_pendientes' => Prestamo::where('estado', 'activo')->count(),
+                'libros_prestados_total' => Libro::where('estado_actual', 'prestado')->count(),
+            ];
 
-        $vencidos = Prestamo::where('estado', 'activo')
-            ->whereDate('fecha_fin', '<', now())
-            ->count();
+            return response()->json($stats);
+        } catch (\Exception $e) {
+            \Log::error('Error en PrestamoController@estadisticas: ' . $e->getMessage());
+            return response()->json([
+                'error' => 'Error al cargar estadísticas',
+                'message' => $e->getMessage()
+            ], 500);
+        }
+    }
 
-        $devueltos_hoy = Prestamo::where('estado', 'devuelto')
-            ->whereDate('fecha_devolucion', today())
-            ->count();
+    // NUEVO: Libros disponibles para préstamo
+    public function librosDisponibles(Request $request)
+    {
+        try {
+            $query = Libro::with(['autor', 'categoria', 'ubicacion'])
+                ->where('estado_actual', 'en biblioteca');
 
-        return response()->json([
-            'activos' => $activos,
-            'vencidos' => $vencidos,
-            'devueltos_hoy' => $devueltos_hoy
-        ]);
+            if ($request->filled('search')) {
+                $search = $request->search;
+                $query->where(function($q) use ($search) {
+                    $q->where('titulo', 'like', "%{$search}%")
+                      ->orWhere('isbn', 'like', "%{$search}%")
+                      ->orWhere('codigo_inventario', 'like', "%{$search}%")
+                      ->orWhereHas('autor', function($q) use ($search) {
+                          $q->where('nombre', 'like', "%{$search}%");
+                      });
+                });
+            }
+
+            $libros = $query->orderBy('titulo')->limit(50)->get();
+
+            return response()->json($libros);
+        } catch (\Exception $e) {
+            \Log::error('Error en PrestamoController@librosDisponibles: ' . $e->getMessage());
+            return response()->json([
+                'error' => 'Error al cargar libros disponibles',
+                'message' => $e->getMessage()
+            ], 500);
+        }
     }
 
     public function store(Request $request)
@@ -68,45 +100,35 @@ class PrestamoController extends Controller
             'fecha_fin' => 'required|date|after:fecha_inicio',
             'garantia' => 'required|string|max:100',
             'tipo_prestamo' => 'required|in:en biblioteca,a domicilio',
-            'acepta_proteccion_datos' => 'required|boolean|accepted',
         ]);
 
         if ($validator->fails()) {
-            return response()->json([
-                'errors' => $validator->errors()
-            ], 422);
+            return response()->json(['errors' => $validator->errors()], 422);
         }
 
-        // Verificar que el libro esté disponible
         $libro = Libro::findOrFail($request->libro_id);
 
         if ($libro->estado_actual !== 'en biblioteca') {
-            return response()->json([
-                'message' => 'El libro no está disponible para préstamo'
-            ], 422);
+            return response()->json(['message' => 'El libro no está disponible para préstamo'], 422);
         }
 
-        // Verificar si ya tiene un préstamo activo
         if ($libro->prestamos()->where('estado', 'activo')->exists()) {
-            return response()->json([
-                'message' => 'El libro ya tiene un préstamo activo'
-            ], 422);
+            return response()->json(['message' => 'El libro ya tiene un préstamo activo'], 422);
+        }
+
+        // Filtro "iniciados hoy"
+        if ($request->filled('fecha_inicio')) {
+            $query->whereDate('fecha_inicio', $request->fecha_inicio);
         }
 
         try {
             DB::beginTransaction();
 
-            // Calcular edad y días
-            $edad = Prestamo::calcularEdad($request->fecha_nacimiento);
-            $totalDias = Prestamo::calcularTotalDias($request->fecha_inicio, $request->fecha_fin);
+            $edad = \Carbon\Carbon::parse($request->fecha_nacimiento)->age;
+            $totalDias = \Carbon\Carbon::parse($request->fecha_inicio)->diffInDays(\Carbon\Carbon::parse($request->fecha_fin));
 
-            // Buscar cliente por DNI si existe
-            $cliente = Cliente::where('dni', $request->dni)->first();
-            
-            // Crear préstamo - ESTADO: 'activo' directamente (no 'pendiente')
             $prestamo = Prestamo::create([
                 'libro_id' => $request->libro_id,
-                'cliente_id' => $cliente ? $cliente->id : null,
                 'nombres' => $request->nombres,
                 'apellidos' => $request->apellidos,
                 'dni' => $request->dni,
@@ -119,12 +141,10 @@ class PrestamoController extends Controller
                 'total_dias' => $totalDias,
                 'garantia' => $request->garantia,
                 'tipo_prestamo' => $request->tipo_prestamo,
-                'estado' => 'activo', // CREACIÓN DIRECTA COMO ACTIVO
-                'fecha_aprobacion' => now(), // APRUEBA AUTOMÁTICAMENTE
-                'prestado_por' => session("user_id")
+                'estado' => 'activo',
+                'prestado_por' => session("user_id"),
             ]);
 
-            // Actualizar estado del libro
             $libro->update([
                 'estado_actual' => 'prestado',
                 'tipo_prestamo' => $request->tipo_prestamo
@@ -132,7 +152,7 @@ class PrestamoController extends Controller
 
             DB::commit();
 
-            $prestamo->load(['libro.autor', 'prestadoPor', 'cliente']);
+            $prestamo->load(['libro.autor', 'prestadoPor']);
 
             return response()->json([
                 'message' => 'Préstamo registrado exitosamente',
@@ -141,6 +161,7 @@ class PrestamoController extends Controller
 
         } catch (\Exception $e) {
             DB::rollBack();
+            \Log::error('Error en PrestamoController@store: ' . $e->getMessage());
             return response()->json([
                 'message' => 'Error al registrar el préstamo',
                 'error' => $e->getMessage()
@@ -155,8 +176,7 @@ class PrestamoController extends Controller
             'libro.categoria',
             'libro.ubicacion',
             'prestadoPor',
-            'recibidoPor',
-            'cliente'
+            'recibidoPor'
         ])->findOrFail($id);
 
         return response()->json($prestamo);
@@ -166,31 +186,19 @@ class PrestamoController extends Controller
     {
         $prestamo = Prestamo::findOrFail($id);
 
-        // Solo se puede marcar devuelto si está activo
         if ($prestamo->estado !== 'activo') {
-            return response()->json([
-                'message' => 'Solo se pueden devolver préstamos activos'
-            ], 422);
+            return response()->json(['message' => 'El préstamo no está activo'], 422);
         }
 
         try {
             DB::beginTransaction();
 
-            // Calcular días de retraso si hay
-            $diasRetraso = 0;
-            if (now()->gt($prestamo->fecha_fin)) {
-                $diasRetraso = now()->diffInDays($prestamo->fecha_fin);
-            }
-
-            // Actualizar préstamo
             $prestamo->update([
                 'estado' => 'devuelto',
                 'fecha_devolucion' => now(),
-                'dias_retraso' => $diasRetraso,
                 'recibido_por' => session("user_id")
             ]);
 
-            // Actualizar libro
             $prestamo->libro->update([
                 'estado_actual' => 'en biblioteca',
                 'tipo_prestamo' => 'n/a'
@@ -207,10 +215,7 @@ class PrestamoController extends Controller
 
         } catch (\Exception $e) {
             DB::rollBack();
-            return response()->json([
-                'message' => 'Error al marcar como devuelto',
-                'error' => $e->getMessage()
-            ], 500);
+            return response()->json(['message' => 'Error al marcar como devuelto', 'error' => $e->getMessage()], 500);
         }
     }
 
@@ -218,23 +223,18 @@ class PrestamoController extends Controller
     {
         $prestamo = Prestamo::findOrFail($id);
 
-        // Solo se puede marcar perdido si está activo
         if ($prestamo->estado !== 'activo') {
-            return response()->json([
-                'message' => 'Solo se pueden marcar perdidos préstamos activos'
-            ], 422);
+            return response()->json(['message' => 'El préstamo no está activo'], 422);
         }
 
         try {
             DB::beginTransaction();
 
-            // Actualizar préstamo
             $prestamo->update([
                 'estado' => 'perdido',
                 'recibido_por' => session("user_id")
             ]);
 
-            // Actualizar libro
             $prestamo->libro->update([
                 'estado_actual' => 'perdido',
                 'tipo_prestamo' => 'n/a'
@@ -251,163 +251,18 @@ class PrestamoController extends Controller
 
         } catch (\Exception $e) {
             DB::rollBack();
-            return response()->json([
-                'message' => 'Error al marcar como perdido',
-                'error' => $e->getMessage()
-            ], 500);
+            return response()->json(['message' => 'Error al marcar como perdido', 'error' => $e->getMessage()], 500);
         }
     }
 
-    // Obtener préstamos vencidos
     public function vencidos()
     {
-        $prestamos = Prestamo::with(['libro.autor', 'prestadoPor', 'cliente'])
+        $prestamos = Prestamo::with(['libro.autor', 'prestadoPor'])
             ->where('estado', 'activo')
             ->whereDate('fecha_fin', '<', now())
             ->latest()
             ->get();
 
         return response()->json($prestamos);
-    }
-
-    // ⚡ Obtener libros disponibles para préstamo
-    public function librosDisponibles()
-    {
-        $libros = Libro::with(['autor', 'categoria', 'ubicacion'])
-            ->where('estado_actual', 'en biblioteca')
-            ->orderBy('titulo')
-            ->get();
-
-        return response()->json($libros);
-    }
-
-    // ⚡ NUEVO: Aprobar préstamo pendiente
-    public function aprobar($id)
-    {
-        $prestamo = Prestamo::findOrFail($id);
-
-        if ($prestamo->estado !== 'pendiente') {
-            return response()->json([
-                'message' => 'Solo se pueden aprobar préstamos pendientes'
-            ], 422);
-        }
-
-        try {
-            DB::beginTransaction();
-
-            $prestamo->update([
-                'estado' => 'activo',
-                'fecha_aprobacion' => now(),
-                'prestado_por' => session("user_id")
-            ]);
-
-            // Actualizar libro
-            $prestamo->libro->update([
-                'estado_actual' => 'prestado'
-            ]);
-
-            DB::commit();
-
-            $prestamo->load(['libro', 'prestadoPor']);
-
-            return response()->json([
-                'message' => 'Préstamo aprobado exitosamente',
-                'prestamo' => $prestamo
-            ]);
-
-        } catch (\Exception $e) {
-            DB::rollBack();
-            return response()->json([
-                'message' => 'Error al aprobar el préstamo',
-                'error' => $e->getMessage()
-            ], 500);
-        }
-    }
-
-    // ⚡ NUEVO: Rechazar préstamo pendiente
-    public function rechazar(Request $request, $id)
-    {
-        $validator = Validator::make($request->all(), [
-            'motivo_rechazo' => 'required|string|max:500'
-        ]);
-
-        if ($validator->fails()) {
-            return response()->json([
-                'errors' => $validator->errors()
-            ], 422);
-        }
-
-        $prestamo = Prestamo::findOrFail($id);
-
-        if ($prestamo->estado !== 'pendiente') {
-            return response()->json([
-                'message' => 'Solo se pueden rechazar préstamos pendientes'
-            ], 422);
-        }
-
-        try {
-            DB::beginTransaction();
-
-            $prestamo->update([
-                'estado' => 'rechazado',
-                'fecha_rechazo' => now(),
-                'motivo_rechazo' => $request->motivo_rechazo,
-                'prestado_por' => session("user_id") // Otra opción: tener campo 'rechazado_por'
-            ]);
-
-            DB::commit();
-
-            $prestamo->load(['libro', 'prestadoPor']);
-
-            return response()->json([
-                'message' => 'Préstamo rechazado exitosamente',
-                'prestamo' => $prestamo
-            ]);
-
-        } catch (\Exception $e) {
-            DB::rollBack();
-            return response()->json([
-                'message' => 'Error al rechazar el préstamo',
-                'error' => $e->getMessage()
-            ], 500);
-        }
-    }
-
-    // ⚡ NUEVO: Cancelar préstamo pendiente
-    public function cancelar($id)
-    {
-        $prestamo = Prestamo::findOrFail($id);
-
-        if ($prestamo->estado !== 'pendiente') {
-            return response()->json([
-                'message' => 'Solo se pueden cancelar préstamos pendientes'
-            ], 422);
-        }
-
-        try {
-            DB::beginTransaction();
-
-            $prestamo->update([
-                'estado' => 'rechazado',
-                'fecha_rechazo' => now(),
-                'motivo_rechazo' => 'Cancelado por el usuario'
-            ]);
-
-            DB::commit();
-
-            $prestamo->load(['libro']);
-
-            return response()->json([
-                'message' => 'Préstamo cancelado exitosamente',
-                'prestamo' => $prestamo
-            ]);
-
-        } catch (\Exception $e) {
-            DB::rollBack();
-            return response()->json([
-                'message' => 'Error al cancelar el préstamo',
-                'error' => $e->getMessage()
-            ], 500);
-        }
     }
 }

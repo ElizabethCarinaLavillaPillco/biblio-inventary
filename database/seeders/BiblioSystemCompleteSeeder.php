@@ -375,14 +375,14 @@ class BiblioSystemCompleteSeeder extends Seeder
 
         foreach ($libros as $libro) {
             $libro['created_at'] = now();
-            $libro['updated_at'] => now();
+            $libro['updated_at'] = now();
             DB::table('libros')->insert($libro);
         }
 
         // ========================================
         // 8. PRÉSTAMOS
         // ========================================
-        
+
         // Préstamo activo
         DB::table('prestamos')->insert([
             'libro_id' => 3, // Los ríos profundos (marcado como prestado)

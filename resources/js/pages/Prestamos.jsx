@@ -9,7 +9,9 @@ import {
     FiAlertCircle,
     FiCheckCircle,
     FiXCircle,
-    FiPlus
+    FiPlus,
+    FiCheck,
+    FiX
 } from 'react-icons/fi';
 
 const Prestamos = () => {
@@ -19,9 +21,9 @@ const Prestamos = () => {
     const [showModal, setShowModal] = useState(false);
     const [librosDisponibles, setLibrosDisponibles] = useState([]);
     const [stats, setStats] = useState({
-        activos: 0,
-        vencidos: 0,
-        devueltos_hoy: 0
+        prestamos_activos: 0,
+        prestamos_vencidos: 0,
+        prestamos_hoy: 0
     });
 
     const [formData, setFormData] = useState({
@@ -47,7 +49,16 @@ const Prestamos = () => {
     const fetchPrestamos = async () => {
         try {
             setLoading(true);
-            const params = filtro === 'todos' ? { todos: true } : { estado: filtro };
+            let params = {};
+
+            if (filtro === 'todos') {
+                params = { todos: true };
+            } else if (filtro === 'hoy') {
+                params = { fecha_inicio: new Date().toISOString().split('T')[0] };
+            } else {
+                params = { estado: filtro };
+            }
+
             const response = await axios.get('/prestamos', { params });
             setPrestamos(response.data.data || []);
             setLoading(false);
@@ -120,6 +131,78 @@ const Prestamos = () => {
             fetchStats();
         } catch (error) {
             Swal.fire('Error', error.response?.data?.message || 'No se pudo registrar el préstamo', 'error');
+        }
+    };
+
+    // NUEVO: Aprobar reserva
+    const aprobarReserva = async (id, titulo) => {
+        const result = await Swal.fire({
+            title: '¿Aprobar esta reserva?',
+            html: `<strong>${titulo}</strong><br><br>El libro será marcado como prestado.`,
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonColor: '#4CAF50',
+            cancelButtonColor: '#9E9E9E',
+            confirmButtonText: 'Sí, aprobar',
+            cancelButtonText: 'Cancelar'
+        });
+
+        if (result.isConfirmed) {
+            try {
+                await axios.put(`/reservas/${id}/aprobar`);
+                Swal.fire({
+                    icon: 'success',
+                    title: '¡Reserva Aprobada!',
+                    text: 'La reserva ha sido aprobada exitosamente',
+                    timer: 2000,
+                    showConfirmButton: false
+                });
+                fetchPrestamos();
+                fetchStats();
+            } catch (error) {
+                Swal.fire('Error', error.response?.data?.message || 'No se pudo aprobar la reserva', 'error');
+            }
+        }
+    };
+
+    // NUEVO: Rechazar reserva
+    const rechazarReserva = async (id, titulo) => {
+        const { value: motivo } = await Swal.fire({
+            title: '¿Rechazar esta reserva?',
+            html: `<strong>${titulo}</strong>`,
+            input: 'textarea',
+            inputLabel: 'Motivo del rechazo',
+            inputPlaceholder: 'Escribe el motivo del rechazo...',
+            inputAttributes: {
+                'aria-label': 'Motivo del rechazo'
+            },
+            showCancelButton: true,
+            confirmButtonColor: '#F44336',
+            cancelButtonColor: '#9E9E9E',
+            confirmButtonText: 'Rechazar',
+            cancelButtonText: 'Cancelar',
+            inputValidator: (value) => {
+                if (!value) {
+                    return '¡Debes escribir un motivo!';
+                }
+            }
+        });
+
+        if (motivo) {
+            try {
+                await axios.put(`/reservas/${id}/rechazar`, { motivo_rechazo: motivo });
+                Swal.fire({
+                    icon: 'info',
+                    title: 'Reserva Rechazada',
+                    text: 'La reserva ha sido rechazada',
+                    timer: 2000,
+                    showConfirmButton: false
+                });
+                fetchPrestamos();
+                fetchStats();
+            } catch (error) {
+                Swal.fire('Error', error.response?.data?.message || 'No se pudo rechazar la reserva', 'error');
+            }
         }
     };
 
@@ -208,28 +291,38 @@ const Prestamos = () => {
                 <div style={{...styles.statCard, borderLeftColor: '#FF9800'}}>
                     <FiBook style={styles.statIcon} />
                     <div>
-                        <div style={styles.statValue}>{stats.activos}</div>
+                        <div style={styles.statValue}>{stats.prestamos_activos || 0}</div>
                         <div style={styles.statLabel}>Préstamos Activos</div>
                     </div>
                 </div>
                 <div style={{...styles.statCard, borderLeftColor: '#F44336'}}>
                     <FiAlertCircle style={styles.statIcon} />
                     <div>
-                        <div style={styles.statValue}>{stats.vencidos}</div>
+                        <div style={styles.statValue}>{stats.prestamos_vencidos || 0}</div>
                         <div style={styles.statLabel}>Vencidos</div>
                     </div>
                 </div>
                 <div style={{...styles.statCard, borderLeftColor: '#4CAF50'}}>
                     <FiCheckCircle style={styles.statIcon} />
                     <div>
-                        <div style={styles.statValue}>{stats.devueltos_hoy}</div>
-                        <div style={styles.statLabel}>Devueltos Hoy</div>
+                        <div style={styles.statValue}>{stats.prestamos_hoy || 0}</div>
+                        <div style={styles.statLabel}>Préstamos Hoy</div>
                     </div>
                 </div>
             </div>
 
-            {/* Filtros */}
+            {/* Filtros - ACTUALIZADO: Agregar filtro pendiente */}
             <div style={styles.filters}>
+                <button
+                    onClick={() => setFiltro('pendiente')}
+                    style={{
+                        ...styles.filterBtn,
+                        backgroundColor: filtro === 'pendiente' ? '#9C27B0' : '#e0e0e0',
+                        color: filtro === 'pendiente' ? '#fff' : '#666'
+                    }}
+                >
+                    ⏳ Pendientes
+                </button>
                 <button
                     onClick={() => setFiltro('activo')}
                     style={{
@@ -270,6 +363,16 @@ const Prestamos = () => {
                 >
                     Todos
                 </button>
+                <button
+                    onClick={() => setFiltro('hoy')}
+                    style={{
+                        ...styles.filterBtn,
+                        backgroundColor: filtro === 'hoy' ? '#2196F3' : '#e0e0e0',
+                        color: filtro === 'hoy' ? '#fff' : '#666'
+                    }}
+                >
+                    Hoy
+                </button>
             </div>
 
             {loading ? (
@@ -284,7 +387,7 @@ const Prestamos = () => {
                     {prestamos.map((p) => {
                         const diasRestantes = calcularDiasRestantes(p.fecha_fin);
                         const isVencido = diasRestantes < 0;
-                        const colorEstado = getColorEstado(diasRestantes);
+                        const colorEstado = p.estado === 'pendiente' ? '#9C27B0' : getColorEstado(diasRestantes);
 
                         return (
                             <div key={p.id} style={{
@@ -308,7 +411,8 @@ const Prestamos = () => {
                                         ...styles.statusBadge,
                                         backgroundColor: colorEstado
                                     }}>
-                                        {isVencido ? `Vencido (${Math.abs(diasRestantes)}d)` :
+                                        {p.estado === 'pendiente' ? '⏳ Pendiente' :
+                                         isVencido ? `Vencido (${Math.abs(diasRestantes)}d)` :
                                          diasRestantes <= 3 ? `${diasRestantes}d restantes` :
                                          `${diasRestantes}d restantes`}
                                     </span>
@@ -349,6 +453,26 @@ const Prestamos = () => {
                                     </div>
                                 </div>
 
+                                {/* NUEVO: Botones para reservas pendientes */}
+                                {p.estado === 'pendiente' && (
+                                    <div style={styles.actions}>
+                                        <button
+                                            onClick={() => aprobarReserva(p.id, p.libro?.titulo)}
+                                            style={{...styles.btnDevuelto, backgroundColor: '#4CAF50'}}
+                                        >
+                                            <FiCheck style={{ marginRight: '5px' }} />
+                                            Aprobar
+                                        </button>
+                                        <button
+                                            onClick={() => rechazarReserva(p.id, p.libro?.titulo)}
+                                            style={{...styles.btnPerdido, backgroundColor: '#F44336'}}
+                                        >
+                                            <FiX style={{ marginRight: '5px' }} />
+                                            Rechazar
+                                        </button>
+                                    </div>
+                                )}
+
                                 {p.estado === 'activo' && (
                                     <div style={styles.actions}>
                                         <button
@@ -379,6 +503,13 @@ const Prestamos = () => {
                                     <div style={{...styles.estadoFinal, backgroundColor: '#ffebee', color: '#c62828'}}>
                                         <FiXCircle style={{ marginRight: '8px' }} />
                                         Marcado como perdido
+                                    </div>
+                                )}
+
+                                {p.estado === 'rechazado' && (
+                                    <div style={{...styles.estadoFinal, backgroundColor: '#FFEBEE', color: '#c62828'}}>
+                                        <FiXCircle style={{ marginRight: '8px' }} />
+                                        Rechazado: {p.motivo_rechazo}
                                     </div>
                                 )}
                             </div>
@@ -558,6 +689,7 @@ const Prestamos = () => {
         </div>
     );
 };
+
 
 const styles = {
     container: { padding: '20px', maxWidth: '1400px', margin: '0 auto' },

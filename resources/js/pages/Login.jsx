@@ -16,10 +16,11 @@ const Login = ({ onLogin }) => {
 
         try {
             const response = await axios.post('/login', formData);
-            
+
             const userType = response.data.user_type;
-            
+
             if (userType === 'staff') {
+                // Usuario del staff (admin o bibliotecario)
                 const rolEmoji = response.data.user.rol === 'admin' ? '👑' : '📚';
                 Swal.fire({
                     icon: 'success',
@@ -30,11 +31,12 @@ const Login = ({ onLogin }) => {
                     timer: 2000,
                     showConfirmButton: false
                 });
-                
+
                 onLogin(response.data);
-                navigate('/');
-                
+                navigate('/'); // Dashboard de staff
+
             } else if (userType === 'cliente') {
+                // Cliente de la biblioteca
                 Swal.fire({
                     icon: 'success',
                     title: '¡Bienvenido/a!',
@@ -44,15 +46,31 @@ const Login = ({ onLogin }) => {
                     timer: 2000,
                     showConfirmButton: false
                 });
-                
+
                 onLogin(response.data);
+
+                // Redirigir al catálogo público o a la página de donde venía
                 const returnTo = location.state?.returnTo || '/publico';
                 navigate(returnTo);
             }
 
         } catch (error) {
             console.error('Error en login:', error);
-            Swal.fire('Error', error.response?.data?.message || 'Credenciales incorrectas', 'error');
+
+            let errorMessage = 'Credenciales incorrectas';
+
+            if (error.response?.status === 403) {
+                errorMessage = 'Tu cuenta está inactiva. Contacta a la biblioteca.';
+            } else if (error.response?.data?.message) {
+                errorMessage = error.response.data.message;
+            }
+
+            Swal.fire({
+                icon: 'error',
+                title: 'Error',
+                text: errorMessage,
+                confirmButtonColor: '#F44336'
+            });
         } finally {
             setLoading(false);
         }
@@ -116,17 +134,18 @@ const Login = ({ onLogin }) => {
 
                 <div style={styles.registerSection}>
                     <p style={styles.registerText}>¿Eres nuevo en la biblioteca?</p>
-                    <Link to="/cliente/registro" style={styles.registerButton}>
+                    <Link to="/registro" style={styles.registerButton}>
                         Crear una cuenta
                     </Link>
                     <Link to="/publico" style={styles.backLink}>
-                         ← Volver al inicio
+                        ← Volver al catálogo
                     </Link>
                 </div>
             </div>
         </div>
     );
 };
+
 
 const styles = {
     container: {

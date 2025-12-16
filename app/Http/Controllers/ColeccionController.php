@@ -12,7 +12,6 @@ class ColeccionController extends Controller
     {
         $query = Coleccion::query();
 
-        // Búsqueda
         if ($request->has('search')) {
             $search = $request->search;
             $query->where('nombre', 'like', "%{$search}%");
@@ -28,8 +27,7 @@ class ColeccionController extends Controller
     public function store(Request $request)
     {
         $validator = Validator::make($request->all(), [
-            'nombre' => 'required|string|max:255|unique:colecciones,nombre',
-            'descripcion' => 'nullable|string'
+            'nombre' => 'required|string|max:255|unique:colecciones,nombre'
         ]);
 
         if ($validator->fails()) {
@@ -48,7 +46,7 @@ class ColeccionController extends Controller
 
     public function show($id)
     {
-        $coleccion = Coleccion::with('libros.autor')->findOrFail($id);
+        $coleccion = Coleccion::with('libros.autor', 'libros.categoria')->findOrFail($id);
         return response()->json($coleccion);
     }
 
@@ -57,8 +55,7 @@ class ColeccionController extends Controller
         $coleccion = Coleccion::findOrFail($id);
 
         $validator = Validator::make($request->all(), [
-            'nombre' => 'required|string|max:255|unique:colecciones,nombre,' . $id,
-            'descripcion' => 'nullable|string'
+            'nombre' => 'required|string|max:255|unique:colecciones,nombre,' . $id
         ]);
 
         if ($validator->fails()) {
@@ -92,11 +89,10 @@ class ColeccionController extends Controller
         ]);
     }
 
-    // Búsqueda rápida para autocompletado
     public function search(Request $request)
     {
         $search = $request->get('q', '');
-        
+
         $colecciones = Coleccion::where('nombre', 'like', "%{$search}%")
             ->orderBy('nombre')
             ->limit(10)
@@ -105,10 +101,9 @@ class ColeccionController extends Controller
         return response()->json($colecciones);
     }
 
-    // Para select/dropdown
     public function all()
     {
-        $colecciones = Coleccion::orderBy('nombre')->get(['id', 'nombre', 'descripcion']);
+        $colecciones = Coleccion::orderBy('nombre')->get(['id', 'nombre']);
         return response()->json($colecciones);
     }
 }

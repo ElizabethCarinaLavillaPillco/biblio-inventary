@@ -12,47 +12,53 @@ const RegistrarLibro = () => {
     const [colecciones, setColecciones] = useState([]);
     const [ubicaciones, setUbicaciones] = useState([]);
     const [autoresSugeridos, setAutoresSugeridos] = useState([]);
-    const [mostrarSugerencias, setMostrarSugerencias] = useState(false);
 
+    // ⚠️ ESTADOS FALTANTES DE COLECCIONES (AGREGADOS)
+    const [coleccionesSugeridas, setColeccionesSugeridas] = useState([]);
+    const [mostrarSugerenciasColeccion, setMostrarSugerenciasColeccion] = useState(false);
+
+    const [mostrarSugerencias, setMostrarSugerencias] = useState(false);
     const [formData, setFormData] = useState({
         // Campos básicos
         titulo: '',
         tipo_item: 'libro',
         autor_nombre: '',
         autor_id: '',
-        
+
         // Identificadores (opcionales)
         isbn: '',
         issn: '',
-        
+
         // Clasificación
         categoria_id: '',
         coleccion_id: '',
         clasificacion_cdd: '',
         codigo_cdd: '',
-        
+
         // Publicación
         editorial: '',
         anio_publicacion: '',
         idioma: 'Español',
-        
+
         // Económico
         precio: '',
-        
+
         // Descripción
         resumen: '',
         notas: '',
-        
+
         // Físico
         numero_paginas: '',
         tamanio: '',
         color_forro: '',
-        
+
         // Origen y estado
         procedencia: '',
         estado_libro: 'normal',
         destino_mal_estado: 'n/a',
         estado_actual: 'en biblioteca',
+
+        coleccion_nombre: '',
     });
 
     const [ubicacionParts, setUbicacionParts] = useState({
@@ -82,8 +88,8 @@ const RegistrarLibro = () => {
 
     const fetchColecciones = async () => {
         try {
-            const response = await axios.get('/colecciones');
-            setColecciones(response.data.data || response.data);
+            const response = await axios.get('/colecciones/all');
+            setColecciones(Array.isArray(response.data) ? response.data : response.data?.data || []);
         } catch (error) {
             console.error('Error al cargar colecciones:', error);
         }
@@ -217,6 +223,41 @@ const RegistrarLibro = () => {
         setFormData({ ...formData, ...updates });
     };
 
+    const buscarColecciones = async (query) => {
+        if (query.length < 2) {
+            setColeccionesSugeridas([]);
+            setMostrarSugerenciasColeccion(false);
+            return;
+        }
+
+        try {
+            const response = await axios.get('/colecciones/search', { params: { q: query } });
+            setColeccionesSugeridas(response.data);
+            setMostrarSugerenciasColeccion(true);
+        } catch (error) {
+            console.error('Error al buscar colecciones:', error);
+        }
+    };
+
+    const seleccionarColeccion = (coleccion) => {
+        setFormData({
+            ...formData,
+            coleccion_nombre: coleccion.nombre,
+            coleccion_id: coleccion.id
+        });
+        setMostrarSugerenciasColeccion(false);
+    };
+
+    const handleColeccionChange = (e) => {
+        const valor = e.target.value;
+        setFormData({
+            ...formData,
+            coleccion_nombre: valor,
+            coleccion_id: ''
+        });
+        buscarColecciones(valor);
+    };
+
     const handleSubmit = async (e) => {
         e.preventDefault();
 
@@ -255,42 +296,54 @@ const RegistrarLibro = () => {
                 throw new Error('No se pudo crear o encontrar el autor');
             }
 
+            let coleccionId = formData.coleccion_id;
+            if (!coleccionId && formData.coleccion_nombre) {
+                try {
+                    const coleccionResponse = await axios.post('/colecciones', {
+                        nombre: formData.coleccion_nombre
+                    });
+                    coleccionId = coleccionResponse.data.coleccion.id;
+                } catch (error) {
+                    console.log('Error al crear colección, continuando sin ella:', error);
+                }
+            }
+
             // Preparar datos para enviar
             const dataToSend = {
                 titulo: formData.titulo,
                 tipo_item: formData.tipo_item,
                 autor_id: autorId,
                 categoria_id: formData.categoria_id,
-                
+
                 // Identificadores (enviar solo si tienen valor)
                 isbn: formData.isbn || null,
                 issn: formData.issn || null,
-                
+                coleccion_id: coleccionId || null,
+
                 // Clasificación
-                coleccion_id: formData.coleccion_id || null,
                 clasificacion_cdd: formData.clasificacion_cdd || null,
                 codigo_cdd: formData.codigo_cdd || null,
-                
+
                 // Publicación
                 editorial: formData.editorial || null,
                 anio_publicacion: formData.anio_publicacion || null,
                 idioma: formData.idioma || null,
-                
+
                 // Económico
                 precio: formData.precio || null,
-                
+
                 // Ubicación
                 ubicacion_id: ubicacionId || null,
-                
+
                 // Descripción
                 resumen: formData.resumen || null,
                 notas: formData.notas || null,
-                
+
                 // Físico
                 numero_paginas: formData.numero_paginas || null,
                 tamanio: formData.tamanio || null,
                 color_forro: formData.color_forro || null,
-                
+
                 // Origen y estado
                 procedencia: formData.procedencia || null,
                 estado_libro: formData.estado_libro,
@@ -469,17 +522,29 @@ const RegistrarLibro = () => {
 
                             <div style={styles.formGroup}>
                                 <label style={styles.label}>Colección</label>
-                                <select
-                                    name="coleccion_id"
-                                    value={formData.coleccion_id}
-                                    onChange={handleChange}
-                                    style={styles.select}
-                                >
-                                    <option value="">Sin colección</option>
-                                    {colecciones.map((col) => (
-                                        <option key={col.id} value={col.id}>{col.nombre}</option>
-                                    ))}
-                                </select>
+                                <div style={{ position: 'relative' }}>
+                                    <input
+                                        type="text"
+                                        value={formData.coleccion_nombre}
+                                        onChange={handleColeccionChange}
+                                        onBlur={() => setTimeout(() => setMostrarSugerenciasColeccion(false), 200)}
+                                        style={styles.input}
+                                        placeholder="Escribe o selecciona una colección..."
+                                    />
+                                    {mostrarSugerenciasColeccion && coleccionesSugeridas.length > 0 && (
+                                        <div style={styles.suggestions}>
+                                            {coleccionesSugeridas.map((col) => (
+                                                <div
+                                                    key={col.id}
+                                                    style={styles.suggestionItem}
+                                                    onClick={() => seleccionarColeccion(col)}
+                                                >
+                                                    {col.nombre}
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
                             </div>
 
                             <div style={styles.formGroup}>
@@ -522,6 +587,8 @@ const RegistrarLibro = () => {
                         </div>
                     </div>
                 )}
+
+                {/* RESTO DE SECCIONES... (COPIAR DEL ARCHIVO ORIGINAL) */}
 
                 {/* SECCIÓN 3: INFORMACIÓN DE PUBLICACIÓN */}
                 <div style={styles.section}>
@@ -808,12 +875,12 @@ const styles = {
     container: { padding: '20px', maxWidth: '1200px', margin: '0 auto' },
     headerContainer: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' },
     title: { fontSize: '32px', margin: 0, color: '#333' },
-    toggleBtn: { 
-        padding: '10px 20px', 
-        backgroundColor: '#2196F3', 
-        color: '#fff', 
-        border: 'none', 
-        borderRadius: '8px', 
+    toggleBtn: {
+        padding: '10px 20px',
+        backgroundColor: '#2196F3',
+        color: '#fff',
+        border: 'none',
+        borderRadius: '8px',
         cursor: 'pointer',
         fontWeight: '600',
         fontSize: '14px'

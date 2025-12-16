@@ -37,7 +37,8 @@ class Libro extends Model
         'destino_mal_estado',
         'estado_actual',
         'tipo_prestamo',
-        'registrado_por'
+        'registrado_por',
+        'codigo_inventario',
     ];
 
     protected $casts = [
@@ -148,6 +149,7 @@ class Libro extends Model
             '700' => 'Artes y Recreación',
             '800' => 'Literatura',
             '900' => 'Historia y Geografía'
+
         ];
 
         return $nombres[$this->clasificacion_cdd] ?? 'Sin clasificar';
@@ -159,5 +161,141 @@ class Libro extends Model
             return $this->clasificacion_cdd . '/' . $this->codigo_cdd;
         }
         return null;
+    }
+
+    // ===== NUEVOS MÉTODOS PARA GESTIÓN DE STOCK =====
+
+    /**
+     * Obtener todas las copias del mismo libro (mismo título + autor)
+     */
+    public function copias()
+    {
+        return static::where('titulo', $this->titulo)
+            ->where('autor_id', $this->autor_id)
+            ->where('id', '!=', $this->id);
+    }
+
+    /**
+     * Obtener stock total (todas las copias del mismo libro)
+     */
+    public function getStockTotalAttribute()
+    {
+        return static::where('titulo', $this->titulo)
+            ->where('autor_id', $this->autor_id)
+            ->count();
+    }
+
+    /**
+     * Obtener stock disponible (copias en biblioteca)
+     */
+    public function getStockDisponibleAttribute()
+    {
+        return static::where('titulo', $this->titulo)
+            ->where('autor_id', $this->autor_id)
+            ->where('estado_actual', 'en biblioteca')
+            ->count();
+    }
+
+    /**
+     * Obtener stock prestado
+     */
+    public function getStockPrestadoAttribute()
+    {
+        return static::where('titulo', $this->titulo)
+            ->where('autor_id', $this->autor_id)
+            ->where('estado_actual', 'prestado')
+            ->count();
+    }
+
+    /**
+     * Obtener stock perdido
+     */
+    public function getStockPerdidoAttribute()
+    {
+        return static::where('titulo', $this->titulo)
+            ->where('autor_id', $this->autor_id)
+            ->where('estado_actual', 'perdido')
+            ->count();
+    }
+
+    /**
+     * Obtener todas las copias físicas con detalles
+     */
+    public function getTodasLasCopiasAttribute()
+    {
+        return static::where('titulo', $this->titulo)
+            ->where('autor_id', $this->autor_id)
+            ->with(['ubicacion', 'prestamoActivo'])
+            ->orderBy('estado_actual', 'asc') // Disponibles primero
+            ->orderBy('codigo_inventario', 'asc')
+            ->get();
+    }
+
+    /**
+     * Verificar si hay copias disponibles para préstamo
+     */
+    public function hayCopiasDisponibles()
+    {
+        return $this->stock_disponible > 0;
+    }
+
+    /**
+     * Obtener primera copia disponible
+     */
+    public static function obtenerPrimeraCopiaDisponible($titulo, $autor_id)
+    {
+        return static::where('titulo', $titulo)
+            ->where('autor_id', $autor_id)
+            ->where('estado_actual', 'en biblioteca')
+            ->first();
+    }
+
+
+    public static function generarCodigoInventario($forceUnique = false)
+    {
+        $year = date('Y');
+        $prefix = 'LIB-' . $year . '-';
+
+        if ($forceUnique) {
+            // Generar un código completamente único usando timestamp
+            return $prefix . str_pad(mt_rand(1, 9999), 4, '0', STR_PAD_LEFT) . '-' . time();
+        }
+
+        // Buscar el último código del año actual
+        $ultimoCodigo = static::where('codigo_inventario', 'LIKE', $prefix . '%')
+            ->orderBy('codigo_inventario', 'desc')
+            ->first();
+
+        if ($ultimoCodigo) {
+            // Extraer el número y aumentar
+            $numero = intval(substr($ultimoCodigo->codigo_inventario, -4)) + 1;
+        } else {
+            $numero = 1;
+        }
+
+        return $prefix . str_pad($numero, 4, '0', STR_PAD_LEFT);
+    }
+
+    public static function buscarDuplicados($titulo, $autor_id)
+    {
+        return static::where('titulo', $titulo)
+            ->where('autor_id', $autor_id)
+            ->get();
+    }
+
+
+    // ===== NUEVO SCOPE: Agrupar por libro (título + autor) =====
+    public function scopeAgrupadoPorLibro($query)
+    {
+        return $query->select(
+            'titulo',
+            'autor_id',
+            'categoria_id',
+            \DB::raw('COUNT(*) as total_copias'),
+            \DB::raw('SUM(CASE WHEN estado_actual = "en biblioteca" THEN 1 ELSE 0 END) as copias_disponibles'),
+            \DB::raw('SUM(CASE WHEN estado_actual = "prestado" THEN 1 ELSE 0 END) as copias_prestadas'),
+            \DB::raw('MIN(id) as libro_id') // ID de una copia para ver detalles
+        )
+        ->groupBy('titulo', 'autor_id', 'categoria_id');
     }
 }

@@ -53,8 +53,8 @@ const EditarLibro = () => {
     const fetchLibro = async () => {
         try {
             const response = await axios.get(`/libros/${id}`);
-            const libro = response.data;
-            
+            const libro = response.data.libro;
+
             setFormData({
                 titulo: libro.titulo || '',
                 tipo_item: libro.tipo_item || 'libro',
@@ -80,12 +80,12 @@ const EditarLibro = () => {
                 estado_actual: libro.estado_actual || 'en biblioteca',
                 ubicacion_id: libro.ubicacion_id || '',
             });
-            
+
             // Auto-activar modo avanzado si hay datos en campos avanzados
             if (libro.isbn || libro.issn || libro.clasificacion_cdd || libro.resumen) {
                 setMostrarCamposAvanzados(true);
             }
-            
+
             setLoading(false);
         } catch (error) {
             console.error('Error al cargar libro:', error);
@@ -167,7 +167,7 @@ const EditarLibro = () => {
                 tipo_item: formData.tipo_item,
                 autor_id: formData.autor_id,
                 categoria_id: formData.categoria_id,
-                
+
                 // Campos opcionales - enviar null si están vacíos
                 isbn: formData.isbn || null,
                 issn: formData.issn || null,
@@ -193,14 +193,14 @@ const EditarLibro = () => {
             console.log('Datos a enviar:', dataToSend);
 
             await axios.put(`/libros/${id}`, dataToSend);
-            
+
             Swal.fire('¡Actualizado!', 'El libro ha sido actualizado correctamente.', 'success');
             navigate('/libros');
         } catch (error) {
             console.error('Error al actualizar:', error);
-            
+
             let errorMessage = 'No se pudo actualizar el libro';
-            
+
             if (error.response?.data?.errors) {
                 const errors = error.response.data.errors;
                 errorMessage = Object.values(errors).flat().join('\n');
@@ -209,7 +209,7 @@ const EditarLibro = () => {
             } else if (error.response?.data?.error) {
                 errorMessage = error.response.data.error;
             }
-            
+
             Swal.fire('Error', errorMessage, 'error');
         } finally {
             setSaving(false);
@@ -233,7 +233,7 @@ const EditarLibro = () => {
                     <Link to="/libros" style={styles.backButton}>← Volver a Libros</Link>
                 </div>
             </div>
-            
+
             <div style={styles.card}>
                 <form onSubmit={handleSubmit} style={styles.form}>
                     {/* SECCIÓN 1: INFORMACIÓN PRINCIPAL */}
@@ -242,13 +242,13 @@ const EditarLibro = () => {
                         <div style={styles.grid}>
                             <div style={styles.formGroup}>
                                 <label style={styles.label}>Título *</label>
-                                <input 
-                                    type="text" 
-                                    name="titulo" 
-                                    value={formData.titulo} 
-                                    onChange={handleChange} 
-                                    required 
-                                    style={styles.input} 
+                                <input
+                                    type="text"
+                                    name="titulo"
+                                    value={formData.titulo}
+                                    onChange={handleChange}
+                                    required
+                                    style={styles.input}
                                 />
                             </div>
 
@@ -274,11 +274,11 @@ const EditarLibro = () => {
 
                             <div style={styles.formGroup}>
                                 <label style={styles.label}>Autor *</label>
-                                <select 
-                                    name="autor_id" 
-                                    value={formData.autor_id} 
-                                    onChange={handleChange} 
-                                    required 
+                                <select
+                                    name="autor_id"
+                                    value={formData.autor_id}
+                                    onChange={handleChange}
+                                    required
                                     style={styles.select}
                                 >
                                     <option value="">Seleccionar Autor</option>
@@ -290,11 +290,11 @@ const EditarLibro = () => {
 
                             <div style={styles.formGroup}>
                                 <label style={styles.label}>Categoría *</label>
-                                <select 
-                                    name="categoria_id" 
-                                    value={formData.categoria_id} 
-                                    onChange={handleChange} 
-                                    required 
+                                <select
+                                    name="categoria_id"
+                                    value={formData.categoria_id}
+                                    onChange={handleChange}
+                                    required
                                     style={styles.select}
                                 >
                                     <option value="">Seleccionar Categoría</option>
@@ -399,12 +399,12 @@ const EditarLibro = () => {
                         <div style={styles.grid}>
                             <div style={styles.formGroup}>
                                 <label style={styles.label}>Editorial</label>
-                                <input 
-                                    type="text" 
-                                    name="editorial" 
-                                    value={formData.editorial} 
-                                    onChange={handleChange} 
-                                    style={styles.input} 
+                                <input
+                                    type="text"
+                                    name="editorial"
+                                    value={formData.editorial}
+                                    onChange={handleChange}
+                                    style={styles.input}
                                 />
                             </div>
 
@@ -444,14 +444,14 @@ const EditarLibro = () => {
 
                             <div style={styles.formGroup}>
                                 <label style={styles.label}>Precio (S/.)</label>
-                                <input 
-                                    type="number" 
-                                    name="precio" 
-                                    value={formData.precio} 
-                                    onChange={handleChange} 
-                                    style={styles.input} 
-                                    step="0.01" 
-                                    min="0" 
+                                <input
+                                    type="number"
+                                    name="precio"
+                                    value={formData.precio}
+                                    onChange={handleChange}
+                                    style={styles.input}
+                                    step="0.01"
+                                    min="0"
                                 />
                             </div>
                         </div>
@@ -462,10 +462,10 @@ const EditarLibro = () => {
                         <h2 style={styles.sectionTitle}>📍 Ubicación Física</h2>
                         <div style={styles.formGroup}>
                             <label style={styles.label}>Ubicación</label>
-                            <select 
-                                name="ubicacion_id" 
-                                value={formData.ubicacion_id} 
-                                onChange={handleChange} 
+                            <select
+                                name="ubicacion_id"
+                                value={formData.ubicacion_id}
+                                onChange={handleChange}
                                 style={styles.select}
                             >
                                 <option value="">Sin Ubicación</option>
@@ -511,21 +511,21 @@ const EditarLibro = () => {
                         <div style={styles.grid}>
                             <div style={styles.formGroup}>
                                 <label style={styles.label}>Número de Páginas</label>
-                                <input 
-                                    type="number" 
-                                    name="numero_paginas" 
-                                    value={formData.numero_paginas} 
-                                    onChange={handleChange} 
-                                    style={styles.input} 
-                                    min="1" 
+                                <input
+                                    type="number"
+                                    name="numero_paginas"
+                                    value={formData.numero_paginas}
+                                    onChange={handleChange}
+                                    style={styles.input}
+                                    min="1"
                                 />
                             </div>
                             <div style={styles.formGroup}>
                                 <label style={styles.label}>Tamaño</label>
-                                <select 
-                                    name="tamanio" 
-                                    value={formData.tamanio} 
-                                    onChange={handleChange} 
+                                <select
+                                    name="tamanio"
+                                    value={formData.tamanio}
+                                    onChange={handleChange}
                                     style={styles.select}
                                 >
                                     <option value="">Seleccionar...</option>
@@ -536,20 +536,20 @@ const EditarLibro = () => {
                             </div>
                             <div style={styles.formGroup}>
                                 <label style={styles.label}>Color de Forro</label>
-                                <input 
-                                    type="text" 
-                                    name="color_forro" 
-                                    value={formData.color_forro} 
-                                    onChange={handleChange} 
-                                    style={styles.input} 
+                                <input
+                                    type="text"
+                                    name="color_forro"
+                                    value={formData.color_forro}
+                                    onChange={handleChange}
+                                    style={styles.input}
                                 />
                             </div>
                             <div style={styles.formGroup}>
                                 <label style={styles.label}>Procedencia</label>
-                                <select 
-                                    name="procedencia" 
-                                    value={formData.procedencia} 
-                                    onChange={handleChange} 
+                                <select
+                                    name="procedencia"
+                                    value={formData.procedencia}
+                                    onChange={handleChange}
                                     style={styles.select}
                                 >
                                     <option value="">Seleccionar...</option>
@@ -568,11 +568,11 @@ const EditarLibro = () => {
                         <div style={styles.grid}>
                             <div style={styles.formGroup}>
                                 <label style={styles.label}>Estado Físico *</label>
-                                <select 
-                                    name="estado_libro" 
-                                    value={formData.estado_libro} 
-                                    onChange={handleChange} 
-                                    required 
+                                <select
+                                    name="estado_libro"
+                                    value={formData.estado_libro}
+                                    onChange={handleChange}
+                                    required
                                     style={styles.select}
                                 >
                                     <option value="nuevo">Nuevo</option>
@@ -584,11 +584,11 @@ const EditarLibro = () => {
                             {formData.estado_libro === 'mal estado' && (
                                 <div style={styles.formGroup}>
                                     <label style={styles.label}>Destino del Material *</label>
-                                    <select 
-                                        name="destino_mal_estado" 
-                                        value={formData.destino_mal_estado} 
-                                        onChange={handleChange} 
-                                        style={styles.select} 
+                                    <select
+                                        name="destino_mal_estado"
+                                        value={formData.destino_mal_estado}
+                                        onChange={handleChange}
+                                        style={styles.select}
                                         required
                                     >
                                         <option value="aun en biblioteca">Aún en Biblioteca</option>
@@ -599,11 +599,11 @@ const EditarLibro = () => {
 
                             <div style={styles.formGroup}>
                                 <label style={styles.label}>Estado Actual</label>
-                                <select 
-                                    name="estado_actual" 
-                                    value={formData.estado_actual} 
-                                    onChange={handleChange} 
-                                    required 
+                                <select
+                                    name="estado_actual"
+                                    value={formData.estado_actual}
+                                    onChange={handleChange}
+                                    required
                                     style={styles.select}
                                 >
                                     <option value="en biblioteca">En Biblioteca</option>
@@ -617,16 +617,16 @@ const EditarLibro = () => {
 
                     {/* Botones */}
                     <div style={styles.actions}>
-                        <button 
-                            type="button" 
-                            onClick={() => navigate('/libros')} 
+                        <button
+                            type="button"
+                            onClick={() => navigate('/libros')}
                             style={{...styles.button, ...styles.buttonCancel}}
                             disabled={saving}
                         >
                             Cancelar
                         </button>
-                        <button 
-                            type="submit" 
+                        <button
+                            type="submit"
                             style={{...styles.button, ...styles.buttonSubmit, opacity: saving ? 0.6 : 1}}
                             disabled={saving}
                         >
@@ -644,12 +644,12 @@ const styles = {
     headerContainer: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '15px' },
     headerActions: { display: 'flex', gap: '10px', alignItems: 'center' },
     title: { fontSize: '32px', color: '#333', margin: 0 },
-    toggleBtn: { 
-        padding: '10px 20px', 
-        backgroundColor: '#2196F3', 
-        color: '#fff', 
-        border: 'none', 
-        borderRadius: '8px', 
+    toggleBtn: {
+        padding: '10px 20px',
+        backgroundColor: '#2196F3',
+        color: '#fff',
+        border: 'none',
+        borderRadius: '8px',
         cursor: 'pointer',
         fontWeight: '600',
         fontSize: '14px'

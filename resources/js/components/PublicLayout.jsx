@@ -2,13 +2,13 @@ import React from 'react';
 import { Outlet, Link, useNavigate } from 'react-router-dom';
 import { FaBook, FaHome, FaUser, FaSignOutAlt, FaBookReader, FaSignInAlt, FaUserPlus } from 'react-icons/fa';
 
-const PublicLayout = ({ children, cliente, onLogout }) => {
+const PublicLayout = ({ cliente, onLogout }) => {
     const navigate = useNavigate();
 
     const handleLogout = async () => {
         if (onLogout) {
             await onLogout();
-            navigate('/publico'); // Redirigir al catálogo público después de cerrar sesión
+            navigate('/publico');
         }
     };
 
@@ -18,25 +18,24 @@ const PublicLayout = ({ children, cliente, onLogout }) => {
             <header style={styles.header}>
                 <div style={styles.headerContent}>
                     <div style={styles.headerLeft}>
-                        {/* Se añade el logo aquí */}
                         <img src="/images/logos/logo.png" alt="Logo Biblioteca Municipal" style={styles.logoImage} />
                         <div>
                             <h1 style={styles.logoText}>Biblioteca Municipal de San Jerónimo</h1>
                             <p style={styles.logoSubtext}>San Jerónimo, Cusco, Perú</p>
                         </div>
                     </div>
-                    
+
                     <div style={styles.headerRight}>
                         {cliente ? (
                             <>
                                 <Link to="/publico" style={styles.headerLink}>
-                                    <FaHome /> Catálogo
+                                    <FaHome /> Inicio
                                 </Link>
-                                <Link to="/reservas" style={styles.headerLink}>
+                                <Link to="/cliente/reservas" style={styles.headerLink}>
                                     <FaBookReader /> Mis Reservas
                                 </Link>
                                 <div style={styles.userMenu}>
-                                    <Link to="/perfil" style={styles.userLink}>
+                                    <Link to="/cliente/perfil" style={styles.userLink}>
                                         <FaUser />
                                         <span style={styles.userName}>{cliente.nombres}</span>
                                     </Link>
@@ -48,7 +47,7 @@ const PublicLayout = ({ children, cliente, onLogout }) => {
                         ) : (
                             <>
                                 <Link to="/publico" style={styles.headerLink}>
-                                    <FaHome /> Catálogo
+                                    <FaHome /> Inicio
                                 </Link>
                                 <Link to="/login" style={styles.btnOutline}>
                                     <FaSignInAlt /> Iniciar Sesión
@@ -64,7 +63,7 @@ const PublicLayout = ({ children, cliente, onLogout }) => {
 
             {/* Main Content */}
             <main style={styles.main}>
-            <Outlet />
+                <Outlet />
             </main>
 
             {/* Footer */}
@@ -75,12 +74,12 @@ const PublicLayout = ({ children, cliente, onLogout }) => {
                         <p style={styles.footerText}>Sistema de Gestión de Biblioteca</p>
                         <p style={styles.footerText}>Biblioteca Municipal de San Jerónimo - Cusco, Perú</p>
                     </div>
-                    
+
                     <div style={styles.footerSection}>
                         <h3 style={styles.footerTitle}>Enlaces Rápidos</h3>
-                        <Link to="/publico" style={styles.footerLink}>Catálogo</Link>
+                        <Link to="/publico" style={styles.footerLink}>Inicio (Catálogo)</Link>
                         {!cliente && <Link to="/registro" style={styles.footerLink}>Crear Cuenta</Link>}
-                        {cliente && <Link to="/perfil" style={styles.footerLink}>Mi Perfil</Link>}
+                        {cliente && <Link to="/cliente/perfil" style={styles.footerLink}>Mi Perfil</Link>}
                     </div>
 
                     <div style={styles.footerSection}>
@@ -103,13 +102,11 @@ const styles = {
         display: 'flex',
         flexDirection: 'column',
         minHeight: '100vh',
-        backgroundColor: '#f8f9fa' // Fondo ligeramente más suave
+        backgroundColor: '#f8f9fa',
     },
-    
-    // HEADER
     header: {
         backgroundColor: '#fff',
-        boxShadow: '0 4px 12px rgba(0,0,0,0.08)', // Sombra más suave y moderna
+        boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
         position: 'sticky',
         top: 0,
         zIndex: 1000,
@@ -117,7 +114,7 @@ const styles = {
     headerContent: {
         maxWidth: '1400px',
         margin: '0 auto',
-        padding: '15px 40px', // Padding vertical reducido para un look más compacto
+        padding: '15px 40px',
         display: 'flex',
         justifyContent: 'space-between',
         alignItems: 'center',
@@ -128,62 +125,36 @@ const styles = {
         gap: '15px',
     },
     logoImage: {
-        height: '50px', // Ajusta el tamaño según sea necesario
+        height: '50px',
         width: 'auto',
     },
     logoText: {
         margin: 0,
         fontSize: '26px',
         fontWeight: 'bold',
+        color: '#2c3e50',
     },
     logoSubtext: {
         margin: 0,
         fontSize: '14px',
-        opacity: 0.9,
+        color: '#7f8c8d',
     },
-    logo: {
-        display: 'flex',
-        alignItems: 'center',
-        gap: '12px',
-        textDecoration: 'none',
-        fontSize: '28px',
-        fontWeight: 'bold',
-        color: '#2CA792', // Color turquesa para el logo
-        transition: 'all 0.3s ease',
-    },
-    logoIcon: {
-        fontSize: '32px',
-        color: '#2CA792', // Aseguramos que el ícono también sea turquesa
-    },
-    
-    logoImage: { // Estilo para la imagen del logo PNG
-        height: '40px', // Ajusta el tamaño según necesites
-        width: 'auto',
-    },
-    
-    // HEADER RIGHT
     headerRight: {
         display: 'flex',
         alignItems: 'center',
-        gap: '15px', // Espaciado reducido
+        gap: '15px',
     },
     headerLink: {
         display: 'flex',
         alignItems: 'center',
         gap: '8px',
         padding: '10px 16px',
-        color: '#555', // Color de texto más suave
+        color: '#555',
         textDecoration: 'none',
         fontWeight: '500',
         borderRadius: '8px',
         transition: 'all 0.3s ease',
     },
-    headerLinkHover: { // Efecto hover (aplicado con onMouseEnter/onMouseLeave o CSS-in-JS libraries)
-        color: '#2CA792',
-        backgroundColor: '#f0f9f8', // Fondo muy sutil al pasar el mouse
-    },
-
-    // USER MENU
     userMenu: {
         display: 'flex',
         alignItems: 'center',
@@ -193,7 +164,7 @@ const styles = {
         display: 'flex',
         alignItems: 'center',
         gap: '10px',
-        color: '#3484A5', // Azul principal para el enlace del usuario
+        color: '#3484A5',
         textDecoration: 'none',
         fontWeight: '600',
         padding: '8px 12px',
@@ -203,32 +174,30 @@ const styles = {
     userName: {
         fontSize: '15px',
     },
-    
-    // BUTTONS
-    btnPrimary: { // Botón de acción principal (Registrarse)
+    btnPrimary: {
         display: 'flex',
         alignItems: 'center',
         gap: '8px',
         padding: '10px 22px',
-        backgroundColor: '#3484A5', // Azul principal
+        backgroundColor: '#3484A5',
         color: '#fff',
         textDecoration: 'none',
         fontWeight: '600',
-        borderRadius: '50px', // Bordes completamente redondeados (píldora)
+        borderRadius: '50px',
         transition: 'all 0.3s ease',
-        boxShadow: '0 4px 10px rgba(52, 132, 165, 0.3)', // Sombra con color del botón
+        boxShadow: '0 4px 10px rgba(52, 132, 165, 0.3)',
     },
-    btnOutline: { // Botón de contorno (Iniciar Sesión)
+    btnOutline: {
         display: 'flex',
         alignItems: 'center',
         gap: '8px',
         padding: '10px 22px',
         backgroundColor: 'transparent',
-        color: '#2CA792', // Color turquesa para texto y borde
+        color: '#2CA792',
         textDecoration: 'none',
         fontWeight: '600',
-        borderRadius: '50px', // Bordes completamente redondeados
-        border: '2px solid #2CA792', // Borde turquesa
+        borderRadius: '50px',
+        border: '2px solid #2CA792',
         transition: 'all 0.3s ease',
     },
     logoutBtn: {
@@ -236,27 +205,21 @@ const styles = {
         alignItems: 'center',
         gap: '8px',
         padding: '8px 16px',
-        backgroundColor: '#e74c3c', // Un rojo más suave y moderno
+        backgroundColor: '#e74c3c',
         color: '#fff',
         border: 'none',
-        borderRadius: '50px', // Bordes redondeados
+        borderRadius: '50px',
         cursor: 'pointer',
         fontWeight: '600',
         fontSize: '14px',
         transition: 'all 0.3s ease',
         boxShadow: '0 4px 10px rgba(231, 76, 60, 0.3)',
     },
-    
-    // MAIN
     main: {
         flex: 1,
-        maxWidth: '1400px',
         width: '100%',
         margin: '0 auto',
-        padding: '40px 20px',
     },
-    
-    // FOOTER
     footer: {
         backgroundColor: '#2c3e50',
         color: '#ecf0f1',
@@ -293,7 +256,7 @@ const styles = {
         margin: '4px 0',
     },
     footerLink: {
-        color: '#2CA792', // Enlaces del footer en color turquesa
+        color: '#2CA792',
         textDecoration: 'none',
         fontSize: '14px',
         transition: 'color 0.3s ease',

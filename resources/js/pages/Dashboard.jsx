@@ -1,8 +1,8 @@
-// resources/js/pages/Dashboard.jsx
-
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import axios from 'axios';
+import { FiBell, FiAlertCircle, FiCheck, FiX } from 'react-icons/fi';
+import Swal from 'sweetalert2';
 
 const Dashboard = () => {
     const [data, setData] = useState(null);
@@ -16,7 +16,6 @@ const Dashboard = () => {
     const fetchDashboardData = async () => {
         try {
             setLoading(true);
-            // CORREGIDO: Usar /dashboard (axios ya tiene baseURL /api)
             const response = await axios.get('/dashboard');
             console.log('Dashboard data:', response.data);
             setData(response.data);
@@ -26,6 +25,74 @@ const Dashboard = () => {
             setError('Error al cargar los datos del dashboard');
         } finally {
             setLoading(false);
+        }
+    };
+
+    const aprobarReserva = async (id, libroTitulo) => {
+        const result = await Swal.fire({
+            title: '¿Aprobar esta reserva?',
+            html: `<strong>${libroTitulo}</strong><br><br>El libro será marcado como prestado.`,
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonColor: '#4CAF50',
+            cancelButtonColor: '#9E9E9E',
+            confirmButtonText: 'Sí, aprobar',
+            cancelButtonText: 'Cancelar'
+        });
+
+        if (result.isConfirmed) {
+            try {
+                await axios.put(`/reservas/${id}/aprobar`);
+                Swal.fire({
+                    icon: 'success',
+                    title: '¡Reserva Aprobada!',
+                    text: 'La reserva ha sido aprobada exitosamente',
+                    timer: 2000,
+                    showConfirmButton: false
+                });
+                fetchDashboardData();
+            } catch (error) {
+                Swal.fire('Error', error.response?.data?.message || 'No se pudo aprobar la reserva', 'error');
+            }
+        }
+    };
+
+    const rechazarReserva = async (id, libroTitulo) => {
+        const { value: motivo } = await Swal.fire({
+            title: '¿Rechazar esta reserva?',
+            html: `<strong>${libroTitulo}</strong>`,
+            input: 'textarea',
+            inputLabel: 'Motivo del rechazo',
+            inputPlaceholder: 'Escribe el motivo del rechazo...',
+            inputAttributes: {
+                'aria-label': 'Motivo del rechazo'
+            },
+            showCancelButton: true,
+            confirmButtonColor: '#F44336',
+            cancelButtonColor: '#9E9E9E',
+            confirmButtonText: 'Rechazar',
+            cancelButtonText: 'Cancelar',
+            inputValidator: (value) => {
+                if (!value) {
+                    return '¡Debes escribir un motivo!';
+                }
+            }
+        });
+
+        if (motivo) {
+            try {
+                await axios.put(`/reservas/${id}/rechazar`, { motivo_rechazo: motivo });
+                Swal.fire({
+                    icon: 'info',
+                    title: 'Reserva Rechazada',
+                    text: 'La reserva ha sido rechazada',
+                    timer: 2000,
+                    showConfirmButton: false
+                });
+                fetchDashboardData();
+            } catch (error) {
+                Swal.fire('Error', error.response?.data?.message || 'No se pudo rechazar la reserva', 'error');
+            }
         }
     };
 
@@ -56,6 +123,7 @@ const Dashboard = () => {
         categorias_populares = [],
         ultimos_libros = [],
         prestamos_recientes = [],
+        reservas_pendientes = [],
         prestamos_por_tipo = []
     } = data;
 
@@ -70,8 +138,8 @@ const Dashboard = () => {
         { label: 'Préstamos Activos', value: stats.prestamos_activos || 0, color: '#8BC34A', path: '/prestamos' },
     ];
 
-    const maxPrestamos = prestamos_por_mes.length > 0 
-        ? Math.max(...prestamos_por_mes.map(item => item.total || 0)) 
+    const maxPrestamos = prestamos_por_mes.length > 0
+        ? Math.max(...prestamos_por_mes.map(item => item.total || 0))
         : 1;
 
     return (
@@ -85,6 +153,65 @@ const Dashboard = () => {
                     📤 Exportaciones BNP
                 </Link>
             </div>
+
+            {/* ALERTA DE RESERVAS PENDIENTES - NUEVO */}
+            {reservas_pendientes.length > 0 && (
+                <div style={styles.alertContainer}>
+                    <div style={styles.alertHeader}>
+                        <FiBell style={styles.alertIcon} />
+                        <h3 style={styles.alertTitle}>
+                            {reservas_pendientes.length} Reserva{reservas_pendientes.length > 1 ? 's' : ''} Pendiente{reservas_pendientes.length > 1 ? 's' : ''} de Aprobación
+                        </h3>
+                    </div>
+                    <div style={styles.reservasList}>
+                        {reservas_pendientes.map((reserva) => (
+                            <div key={reserva.id} style={styles.reservaCard}>
+                                <div style={styles.reservaInfo}>
+                                    <div style={styles.reservaLibro}>
+                                        📖 <strong>{reserva.libro?.titulo}</strong>
+                                    </div>
+                                    <div style={styles.reservaCliente}>
+                                        👤 {reserva.cliente ? `${reserva.cliente.nombres} ${reserva.cliente.apellidos}` : `${reserva.nombres} ${reserva.apellidos}`}
+                                    </div>
+                                    <div style={styles.reservaFecha}>
+                                        📅 Solicitado: {new Date(reserva.created_at).toLocaleDateString('es-PE', {
+                                            day: '2-digit',
+                                            month: 'short',
+                                            year: 'numeric',
+                                            hour: '2-digit',
+                                            minute: '2-digit'
+                                        })}
+                                    </div>
+                                    <div style={styles.reservaDetalle}>
+                                        🗓️ Del {new Date(reserva.fecha_inicio).toLocaleDateString('es-PE')} al {new Date(reserva.fecha_fin).toLocaleDateString('es-PE')}
+                                    </div>
+                                    <div style={styles.reservaTipo}>
+                                        {reserva.tipo_prestamo === 'a domicilio' ? '🏠' : '📚'} {reserva.tipo_prestamo}
+                                    </div>
+                                </div>
+                                <div style={styles.reservaActions}>
+                                    <button
+                                        onClick={() => aprobarReserva(reserva.id, reserva.libro?.titulo)}
+                                        style={styles.btnAprobar}
+                                        title="Aprobar reserva"
+                                    >
+                                        <FiCheck style={{ marginRight: '5px' }} />
+                                        Aprobar
+                                    </button>
+                                    <button
+                                        onClick={() => rechazarReserva(reserva.id, reserva.libro?.titulo)}
+                                        style={styles.btnRechazar}
+                                        title="Rechazar reserva"
+                                    >
+                                        <FiX style={{ marginRight: '5px' }} />
+                                        Rechazar
+                                    </button>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
 
             {/* Estadísticas Principales */}
             <div style={styles.statsGrid}>
@@ -300,7 +427,7 @@ const Dashboard = () => {
 };
 
 const styles = {
-    container: { padding: '20px' },
+    container: { padding: '20px', maxWidth: '1600px', margin: '0 auto' },
     header: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '30px', flexWrap: 'wrap', gap: '15px' },
     title: { fontSize: '32px', margin: 0, color: '#333' },
     subtitle: { fontSize: '14px', color: '#666', marginTop: '5px' },
@@ -308,6 +435,83 @@ const styles = {
     loading: { textAlign: 'center', padding: '50px', fontSize: '18px', color: '#666' },
     error: { textAlign: 'center', padding: '50px', fontSize: '18px', color: '#F44336', backgroundColor: '#FFEBEE', borderRadius: '8px', margin: '20px' },
     retryBtn: { marginTop: '15px', padding: '10px 20px', backgroundColor: '#2196F3', color: 'white', border: 'none', borderRadius: '5px', cursor: 'pointer', fontSize: '14px' },
+
+    // Estilos de la alerta de reservas pendientes
+    alertContainer: {
+        backgroundColor: '#FFF3E0',
+        border: '2px solid #FF9800',
+        borderRadius: '12px',
+        padding: '25px',
+        marginBottom: '30px',
+        boxShadow: '0 4px 12px rgba(255,152,0,0.2)'
+    },
+    alertHeader: {
+        display: 'flex',
+        alignItems: 'center',
+        gap: '15px',
+        marginBottom: '20px',
+        paddingBottom: '15px',
+        borderBottom: '2px solid #FFB74D'
+    },
+    alertIcon: { fontSize: '28px', color: '#FF9800' },
+    alertTitle: { fontSize: '20px', fontWeight: '600', color: '#E65100', margin: 0 },
+    reservasList: { display: 'flex', flexDirection: 'column', gap: '15px' },
+    reservaCard: {
+        backgroundColor: '#fff',
+        padding: '20px',
+        borderRadius: '8px',
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        gap: '20px',
+        boxShadow: '0 2px 6px rgba(0,0,0,0.1)',
+        border: '1px solid #FFE0B2'
+    },
+    reservaInfo: { flex: 1, display: 'flex', flexDirection: 'column', gap: '8px' },
+    reservaLibro: { fontSize: '16px', fontWeight: '600', color: '#333' },
+    reservaCliente: { fontSize: '14px', color: '#666' },
+    reservaFecha: { fontSize: '13px', color: '#999' },
+    reservaDetalle: { fontSize: '13px', color: '#666', fontWeight: '500' },
+    reservaTipo: {
+        fontSize: '12px',
+        fontWeight: '600',
+        color: '#2196F3',
+        backgroundColor: '#E3F2FD',
+        padding: '4px 10px',
+        borderRadius: '12px',
+        display: 'inline-block',
+        width: 'fit-content'
+    },
+    reservaActions: { display: 'flex', gap: '10px', flexShrink: 0 },
+    btnAprobar: {
+        padding: '10px 18px',
+        backgroundColor: '#4CAF50',
+        color: '#fff',
+        border: 'none',
+        borderRadius: '6px',
+        fontWeight: '600',
+        cursor: 'pointer',
+        display: 'flex',
+        alignItems: 'center',
+        fontSize: '14px',
+        transition: 'all 0.3s',
+        boxShadow: '0 2px 4px rgba(76,175,80,0.3)'
+    },
+    btnRechazar: {
+        padding: '10px 18px',
+        backgroundColor: '#F44336',
+        color: '#fff',
+        border: 'none',
+        borderRadius: '6px',
+        fontWeight: '600',
+        cursor: 'pointer',
+        display: 'flex',
+        alignItems: 'center',
+        fontSize: '14px',
+        transition: 'all 0.3s',
+        boxShadow: '0 2px 4px rgba(244,67,54,0.3)'
+    },
+
     statsGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '20px', marginBottom: '30px' },
     statCard: { backgroundColor: '#fff', padding: '25px', borderRadius: '12px', boxShadow: '0 2px 8px rgba(0,0,0,0.1)', borderLeft: '5px solid', transition: 'transform 0.2s' },
     statValue: { fontSize: '32px', fontWeight: 'bold', color: '#333', marginBottom: '8px' },

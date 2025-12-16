@@ -37,19 +37,19 @@ const RegistroCliente = () => {
 
         try {
             const response = await axios.post('/register', formData);
-            
+
             Swal.fire({
                 icon: 'success',
                 title: '¡Registro Exitoso!',
-                text: response.data.message,
-                confirmButtonColor: '#2CA792' // Color de la paleta
+                text: 'Tu cuenta ha sido creada. Ya puedes iniciar sesión.',
+                confirmButtonColor: '#2CA792'
             }).then(() => {
-                navigate('/cliente/login');
+                navigate('/login'); // Redirigir al login
             });
 
         } catch (error) {
             console.error('Error en registro:', error);
-            
+
             if (error.response?.status === 422) {
                 setErrors(error.response.data.errors || {});
                 Swal.fire({
@@ -86,23 +86,76 @@ const RegistroCliente = () => {
                         <h3 style={styles.sectionTitle}>👤 Datos Personales</h3>
                         <div style={styles.grid}>
                             <div style={styles.formGroup}>
-                                <label style={styles.label}><FaUser style={styles.labelIcon} /> Nombres *</label>
-                                <input type="text" name="nombres" value={formData.nombres} onChange={handleChange} style={{...styles.input, borderColor: errors.nombres ? '#e74c3c' : '#e0e0e0'}} required />
+                                <label style={styles.label}>
+                                    <FaUser style={styles.labelIcon} /> Nombres *
+                                </label>
+                                <input
+                                    type="text"
+                                    name="nombres"
+                                    value={formData.nombres}
+                                    onChange={handleChange}
+                                    style={{
+                                        ...styles.input,
+                                        borderColor: errors.nombres ? '#F44336' : '#e0e0e0'
+                                    }}
+                                    required
+                                />
                                 {errors.nombres && <span style={styles.error}>{errors.nombres[0]}</span>}
                             </div>
+
                             <div style={styles.formGroup}>
-                                <label style={styles.label}><FaUser style={styles.labelIcon} /> Apellidos *</label>
-                                <input type="text" name="apellidos" value={formData.apellidos} onChange={handleChange} style={{...styles.input, borderColor: errors.apellidos ? '#e74c3c' : '#e0e0e0'}} required />
+                                <label style={styles.label}>
+                                    <FaUser style={styles.labelIcon} /> Apellidos *
+                                </label>
+                                <input
+                                    type="text"
+                                    name="apellidos"
+                                    value={formData.apellidos}
+                                    onChange={handleChange}
+                                    style={{
+                                        ...styles.input,
+                                        borderColor: errors.apellidos ? '#F44336' : '#e0e0e0'
+                                    }}
+                                    required
+                                />
                                 {errors.apellidos && <span style={styles.error}>{errors.apellidos[0]}</span>}
                             </div>
+
                             <div style={styles.formGroup}>
-                                <label style={styles.label}><FaIdCard style={styles.labelIcon} /> DNI *</label>
-                                <input type="text" name="dni" value={formData.dni} onChange={handleChange} maxLength="8" style={{...styles.input, borderColor: errors.dni ? '#e74c3c' : '#e0e0e0'}} placeholder="12345678" required />
+                                <label style={styles.label}>
+                                    <FaIdCard style={styles.labelIcon} /> DNI *
+                                </label>
+                                <input
+                                    type="text"
+                                    name="dni"
+                                    value={formData.dni}
+                                    onChange={handleChange}
+                                    maxLength="8"
+                                    style={{
+                                        ...styles.input,
+                                        borderColor: errors.dni ? '#F44336' : '#e0e0e0'
+                                    }}
+                                    placeholder="12345678"
+                                    required
+                                />
                                 {errors.dni && <span style={styles.error}>{errors.dni[0]}</span>}
                             </div>
+
                             <div style={styles.formGroup}>
-                                <label style={styles.label}><FaCalendar style={styles.labelIcon} /> Fecha de Nacimiento *</label>
-                                <input type="date" name="fecha_nacimiento" value={formData.fecha_nacimiento} onChange={handleChange} style={{...styles.input, borderColor: errors.fecha_nacimiento ? '#e74c3c' : '#e0e0e0'}} required />
+                                <label style={styles.label}>
+                                    <FaCalendar style={styles.labelIcon} /> Fecha de Nacimiento *
+                                </label>
+                                <input
+                                    type="date"
+                                    name="fecha_nacimiento"
+                                    value={formData.fecha_nacimiento}
+                                    onChange={handleChange}
+                                    style={{
+                                        ...styles.input,
+                                        borderColor: errors.fecha_nacimiento ? '#F44336' : '#e0e0e0'
+                                    }}
+                                    required
+                                />
                                 {errors.fecha_nacimiento && <span style={styles.error}>{errors.fecha_nacimiento[0]}</span>}
                             </div>
                         </div>
@@ -113,27 +166,88 @@ const RegistroCliente = () => {
                         <h3 style={styles.sectionTitle}>📞 Información de Contacto</h3>
                         <div style={styles.grid}>
                             <div style={styles.formGroup}>
-                                <label style={styles.label}><FaEnvelope style={styles.labelIcon} /> Correo Electrónico *</label>
-                                <input type="email" name="email" value={formData.email} onChange={handleChange} style={{...styles.input, borderColor: errors.email ? '#e74c3c' : '#e0e0e0'}} placeholder="tu@email.com" required />
+                                <label style={styles.label}>
+                                    <FaEnvelope style={styles.labelIcon} /> Correo Electrónico *
+                                </label>
+                                <input
+                                    type="email"
+                                    name="email"
+                                    value={formData.email}
+                                    onChange={handleChange}
+                                    style={{
+                                        ...styles.input,
+                                        borderColor: errors.email ? '#F44336' : '#e0e0e0'
+                                    }}
+                                    placeholder="tu@email.com"
+                                    required
+                                />
                                 {errors.email && <span style={styles.error}>{errors.email[0]}</span>}
                             </div>
+
                             <div style={styles.formGroup}>
-                                <label style={styles.label}><FaPhone style={styles.labelIcon} /> Teléfono *</label>
-                                <input type="tel" name="telefono" value={formData.telefono} onChange={handleChange} style={{...styles.input, borderColor: errors.telefono ? '#e74c3c' : '#e0e0e0'}} placeholder="987 654 321" required />
+                                <label style={styles.label}>
+                                    <FaPhone style={styles.labelIcon} /> Teléfono *
+                                </label>
+                                <input
+                                    type="tel"
+                                    name="telefono"
+                                    value={formData.telefono}
+                                    onChange={handleChange}
+                                    style={{
+                                        ...styles.input,
+                                        borderColor: errors.telefono ? '#F44336' : '#e0e0e0'
+                                    }}
+                                    placeholder="987 654 321"
+                                    required
+                                />
                                 {errors.telefono && <span style={styles.error}>{errors.telefono[0]}</span>}
                             </div>
-                            <div style={styles.formGroup}>
-                                <label style={styles.label}><FaMapMarkerAlt style={styles.labelIcon} /> Domicilio *</label>
-                                <input type="text" name="domicilio" value={formData.domicilio} onChange={handleChange} style={{...styles.input, borderColor: errors.domicilio ? '#e74c3c' : '#e0e0e0'}} placeholder="Calle Principal 123" required />
+
+                            <div style={{...styles.formGroup, gridColumn: '1 / -1'}}>
+                                <label style={styles.label}>
+                                    <FaMapMarkerAlt style={styles.labelIcon} /> Domicilio *
+                                </label>
+                                <input
+                                    type="text"
+                                    name="domicilio"
+                                    value={formData.domicilio}
+                                    onChange={handleChange}
+                                    style={{
+                                        ...styles.input,
+                                        borderColor: errors.domicilio ? '#F44336' : '#e0e0e0'
+                                    }}
+                                    placeholder="Calle Principal 123"
+                                    required
+                                />
                                 {errors.domicilio && <span style={styles.error}>{errors.domicilio[0]}</span>}
                             </div>
+
                             <div style={styles.formGroup}>
-                                <label style={styles.label}><FaMapMarkerAlt style={styles.labelIcon} /> Distrito</label>
-                                <input type="text" name="distrito" value={formData.distrito} onChange={handleChange} style={styles.input} placeholder="Ej: Wanchaq" />
+                                <label style={styles.label}>
+                                    <FaMapMarkerAlt style={styles.labelIcon} /> Distrito
+                                </label>
+                                <input
+                                    type="text"
+                                    name="distrito"
+                                    value={formData.distrito}
+                                    onChange={handleChange}
+                                    style={styles.input}
+                                    placeholder="Ej: San Jerónimo"
+                                />
                             </div>
+
                             <div style={styles.formGroup}>
-                                <label style={styles.label}><FaMapMarkerAlt style={styles.labelIcon} /> Provincia</label>
-                                <input type="text" name="provincia" value={formData.provincia} onChange={handleChange} style={styles.input} placeholder="Ej: Cusco" />
+                                <label style={styles.label}>
+                                    <FaMapMarkerAlt style={styles.labelIcon} /> Provincia
+                                </label>
+                                <input
+                                    type="text"
+                                    name="provincia"
+                                    value={formData.provincia}
+                                    onChange={handleChange}
+                                    style={styles.input}
+                                    placeholder="Ej: Cusco"
+                                />
                             </div>
                         </div>
                     </div>
@@ -143,20 +257,54 @@ const RegistroCliente = () => {
                         <h3 style={styles.sectionTitle}>🔒 Seguridad</h3>
                         <div style={styles.grid}>
                             <div style={styles.formGroup}>
-                                <label style={styles.label}><FaLock style={styles.labelIcon} /> Contraseña *</label>
-                                <input type="password" name="password" value={formData.password} onChange={handleChange} style={{...styles.input, borderColor: errors.password ? '#e74c3c' : '#e0e0e0'}} placeholder="Mínimo 6 caracteres" required />
+                                <label style={styles.label}>
+                                    <FaLock style={styles.labelIcon} /> Contraseña *
+                                </label>
+                                <input
+                                    type="password"
+                                    name="password"
+                                    value={formData.password}
+                                    onChange={handleChange}
+                                    style={{
+                                        ...styles.input,
+                                        borderColor: errors.password ? '#F44336' : '#e0e0e0'
+                                    }}
+                                    placeholder="Mínimo 6 caracteres"
+                                    required
+                                />
                                 {errors.password && <span style={styles.error}>{errors.password[0]}</span>}
                             </div>
+
                             <div style={styles.formGroup}>
-                                <label style={styles.label}><FaLock style={styles.labelIcon} /> Confirmar Contraseña *</label>
-                                <input type="password" name="password_confirmation" value={formData.password_confirmation} onChange={handleChange} style={styles.input} placeholder="Repite tu contraseña" required />
+                                <label style={styles.label}>
+                                    <FaLock style={styles.labelIcon} /> Confirmar Contraseña *
+                                </label>
+                                <input
+                                    type="password"
+                                    name="password_confirmation"
+                                    value={formData.password_confirmation}
+                                    onChange={handleChange}
+                                    style={styles.input}
+                                    placeholder="Repite tu contraseña"
+                                    required
+                                />
                             </div>
                         </div>
                     </div>
 
                     <div style={styles.actions}>
-                        <Link to="/login" style={styles.btnOutline}>← Volver al Login</Link>
-                        <button type="submit" disabled={loading} style={{...styles.btnPrimary, opacity: loading ? 0.7 : 1, cursor: loading ? 'not-allowed' : 'pointer'}}>
+                        <Link to="/login" style={styles.btnOutline}>
+                            ← Volver al Login
+                        </Link>
+                        <button
+                            type="submit"
+                            disabled={loading}
+                            style={{
+                                ...styles.btnPrimary,
+                                opacity: loading ? 0.7 : 1,
+                                cursor: loading ? 'not-allowed' : 'pointer'
+                            }}
+                        >
                             {loading ? '⏳ Registrando...' : '✅ Crear Cuenta'}
                         </button>
                     </div>

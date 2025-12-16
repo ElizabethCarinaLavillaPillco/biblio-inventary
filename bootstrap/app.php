@@ -15,7 +15,9 @@ return Application::configure(basePath: dirname(__DIR__))
         // Registrar los alias de middleware
         $middleware->alias([
             'auth.simple' => \App\Http\Middleware\SimpleAuth::class,
+            'auth.cliente' => \App\Http\Middleware\AuthCliente::class,
             'admin.only' => \App\Http\Middleware\AdminOnly::class,
+            'debug.session' => \App\Http\Middleware\DebugSession::class,
         ]);
 
         // ⚡ AGREGAR: Configuración para sesiones con SPA

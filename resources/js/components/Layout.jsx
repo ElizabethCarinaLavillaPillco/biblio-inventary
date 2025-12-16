@@ -28,6 +28,7 @@ const Layout = ({ children, user, onLogout }) => {
         { path: '/categorias', icon: '🏷️', label: 'Categorías', color: '#FFEB3B' },
         { path: '/ubicaciones', icon: '📍', label: 'Ubicaciones', color: '#00BCD4' },
         { path: '/autores', icon: '✍️', label: 'Autores', color: '#FF5722' },
+        { path: '/colecciones', icon: '📚', label: 'Colecciones', color: '#9C27B0' },
         { path: '/prestamos', icon: '📋', label: 'Préstamos', color: '#FFC107' },
         { path: '/exportaciones', icon: '📤', label: 'Exportaciones BNP', color: '#00BCD4' },
         { path: '/usuarios', icon: '👥', label: 'Usuarios', color: '#9C27B0' },

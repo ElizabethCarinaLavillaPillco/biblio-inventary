@@ -7,6 +7,7 @@ use App\Models\Prestamo;
 use App\Models\Autor;
 use App\Models\Categoria;
 use App\Models\User;
+use App\Models\Cliente;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
@@ -31,13 +32,15 @@ class DashboardController extends Controller
                 'prestamos_vencidos' => Prestamo::where('estado', 'activo')
                     ->whereDate('fecha_fin', '<', now())
                     ->count(),
+                'reservas_pendientes' => Prestamo::where('estado', 'pendiente')->count(), // NUEVO
                 'total_usuarios' => User::where('activo', true)->count(),
+                'total_clientes' => Cliente::count(), // NUEVO
             ];
 
             // =================== STATS DEL MES ===================
             $mesActual = Carbon::now()->month;
             $anioActual = Carbon::now()->year;
-            
+
             $stats_mes = [
                 'prestamos_por_mes' => Prestamo::whereMonth('created_at', $mesActual)
                     ->whereYear('created_at', $anioActual)
@@ -58,7 +61,7 @@ class DashboardController extends Controller
                 $total = Prestamo::whereMonth('created_at', $mes->month)
                     ->whereYear('created_at', $mes->year)
                     ->count();
-                
+
                 $prestamosPorMes[] = [
                     'mes' => $mes->locale('es')->monthName,
                     'total' => $total,
@@ -95,6 +98,13 @@ class DashboardController extends Controller
                 ->take(10)
                 ->get();
 
+            // =================== RESERVAS PENDIENTES (NUEVO) ===================
+            $reservasPendientes = Prestamo::with(['libro.autor', 'cliente'])
+                ->where('estado', 'pendiente')
+                ->orderBy('created_at', 'asc')
+                ->take(10)
+                ->get();
+
             // =================== PRÉSTAMOS POR TIPO (ESTE MES) ===================
             $prestamosPorTipo = Prestamo::select('tipo_prestamo', DB::raw('COUNT(*) as total'))
                 ->whereMonth('created_at', $mesActual)
@@ -116,6 +126,7 @@ class DashboardController extends Controller
                 'categorias_populares' => $categoriasPopulares,
                 'ultimos_libros' => $ultimosLibros,
                 'prestamos_recientes' => $prestamosRecientes,
+                'reservas_pendientes' => $reservasPendientes, // NUEVO
                 'prestamos_por_tipo' => $prestamosPorTipo,
                 'success' => true,
                 'message' => 'Datos del dashboard cargados correctamente'
@@ -124,7 +135,7 @@ class DashboardController extends Controller
         } catch (\Exception $e) {
             \Log::error('Error en Dashboard: ' . $e->getMessage());
             \Log::error('Stack trace: ' . $e->getTraceAsString());
-            
+
             return response()->json([
                 'success' => false,
                 'message' => 'Error al cargar el dashboard',

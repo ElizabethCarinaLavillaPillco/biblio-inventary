@@ -17,8 +17,6 @@ use App\Http\Controllers\ExportacionController;
 use App\Http\Controllers\PlantillaController;
 use App\Http\Controllers\AuditController;
 
-
-
 Route::get('/csrf-token', function () {
     return response()->json(['token' => csrf_token()]);
 });
@@ -26,39 +24,31 @@ Route::get('/csrf-token', function () {
 // ========================================
 // AUTENTICACIÓN UNIFICADA (PÚBLICO)
 // ========================================
-Route::post('/login', [AuthController::class, 'login']);           // Staff Y Cliente
-Route::post('/register', [AuthController::class, 'register']);     // Solo Cliente
-Route::post('/logout', [AuthController::class, 'logout']);         // Ambos
-Route::get('/check', [AuthController::class, 'check']);           // Ambos
+Route::post('/login', [AuthController::class, 'login']);
+Route::post('/register', [AuthController::class, 'register']);
+Route::post('/logout', [AuthController::class, 'logout']);
+Route::get('/check', [AuthController::class, 'check']);
 
 // ========================================
 // RUTAS PÚBLICAS - CATÁLOGO (SIN AUTH)
 // ========================================
 Route::prefix('publico')->group(function () {
-    // Catálogo de libros
     Route::get('/libros', [CatalogoPublicoController::class, 'index']);
     Route::get('/libros/{id}', [CatalogoPublicoController::class, 'show']);
-    
-    // Filtros y navegación
     Route::get('/categorias', [CatalogoPublicoController::class, 'categorias']);
     Route::get('/clasificaciones-cdd', [CatalogoPublicoController::class, 'clasificacionesCdd']);
     Route::get('/autores', [CatalogoPublicoController::class, 'autores']);
     Route::get('/colecciones', [CatalogoPublicoController::class, 'colecciones']);
     Route::get('/estadisticas', [CatalogoPublicoController::class, 'estadisticas']);
-    
-    // Exportación bibliográfica
     Route::get('/libros/{id}/exportar/{formato}', [CatalogoPublicoController::class, 'exportar']);
 });
 
 // ========================================
 // RUTAS PROTEGIDAS - CLIENTE (CON AUTH)
 // ========================================
-Route::middleware('auth.cliente')->group(function () {
-    // Perfil
+Route::middleware(\App\Http\Middleware\AuthCliente::class)->group(function () {
     Route::get('/perfil', [AuthController::class, 'perfil']);
     Route::put('/perfil', [AuthController::class, 'update']);
-    
-    // Reservas del cliente
     Route::post('/reservas', [ReservaController::class, 'crearReserva']);
     Route::get('/reservas', [ReservaController::class, 'misReservas']);
     Route::get('/reservas/{id}', [ReservaController::class, 'detalleReserva']);
@@ -68,7 +58,7 @@ Route::middleware('auth.cliente')->group(function () {
 // ========================================
 // RUTAS PROTEGIDAS - STAFF (CON AUTH)
 // ========================================
-Route::middleware('auth.simple')->group(function () {
+Route::middleware(\App\Http\Middleware\SimpleAuth::class)->group(function () {
     // Dashboard
     Route::get('/dashboard', [DashboardController::class, 'index']);
 
@@ -119,13 +109,16 @@ Route::middleware('auth.simple')->group(function () {
     Route::get('/libros', [LibroController::class, 'index']);
     Route::post('/libros', [LibroController::class, 'store']);
     Route::post('/libros/carga-masiva', [LibroController::class, 'cargaMasiva']);
+    Route::get('/libros/ver-copias', [LibroController::class, 'verCopias']); // AGREGADO - debe estar ANTES de {id}
     Route::get('/libros/{id}', [LibroController::class, 'show']);
     Route::put('/libros/{id}', [LibroController::class, 'update']);
     Route::delete('/libros/{id}', [LibroController::class, 'destroy']);
 
-    // Préstamos (staff)
+    // Préstamos (staff) - CORREGIDO: Agregar rutas faltantes
     Route::get('/prestamos', [PrestamoController::class, 'index']);
     Route::post('/prestamos', [PrestamoController::class, 'store']);
+    Route::get('/prestamos/estadisticas', [PrestamoController::class, 'estadisticas']); // AGREGADO
+    Route::get('/prestamos/libros-disponibles', [PrestamoController::class, 'librosDisponibles']); // AGREGADO
     Route::get('/prestamos/vencidos', [PrestamoController::class, 'vencidos']);
     Route::get('/prestamos/{id}', [PrestamoController::class, 'show']);
     Route::put('/prestamos/{id}/devuelto', [PrestamoController::class, 'marcarDevuelto']);
@@ -146,9 +139,7 @@ Route::middleware('auth.simple')->group(function () {
 
     Route::get('/plantilla/descargar', [PlantillaController::class, 'descargarPlantilla']);
 
-    // ========================================
-    // AUDITORÍA (SOLO ADMIN)
-    // ========================================
+    // Auditoría (solo admin)
     Route::get('/auditoria', [AuditController::class, 'index']);
     Route::get('/auditoria/estadisticas', [AuditController::class, 'estadisticas']);
     Route::get('/auditoria/exportar', [AuditController::class, 'exportar']);
